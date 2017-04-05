@@ -1,0 +1,358 @@
+//created on: 2014-7-24
+package pw_xy
+
+import com.drools.zjxt.kernellib.zjxt_CimBuild;
+import com.drools.zjxt.kernellib.zjxt_ConnectionPool;
+import com.drools.zjxt.kernellib.zjxt_Measure;
+import com.drools.zjxt.kernellib.zjxt_Property;
+import com.drools.zjxt.kernellib.Limit;
+import com.drools.zjxt.kernellib.Limit.*;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.*;
+import com.drools.zjxt.kernellib.zjxt_Measure.*; 
+
+import zjxt.zjxt_msg;
+import com.softcore.cim.entity.*;
+import java.util.Date;
+
+
+
+function float GetMaxVol(float a,float b, float c){
+	float r = 0;
+	
+  	if(a >= b)
+  		r = a;
+  	else 
+  		r = b;
+  		
+  	if(c > r)
+  		r = c;	
+	    
+	zjxt_msg.show("最大电压:"+r);
+	return r;
+}
+
+function float GetMinVol(float a,float b, float c){
+	float r = 0;
+  	
+  	if(a <= b)
+  		r = a;
+  	else 
+  		r = b;
+  		
+  	if(c < r)
+  		r = c;		
+	    
+	zjxt_msg.show("最小电压:"+r);
+	return r;
+}
+
+//import com.softcore.cim.entity.container.*
+
+rule "test"
+enabled false
+when
+	cap : zCompensator(true)
+then
+	String capid = cap.getMrID();
+	String name = cap.getName();
+	double fv = (Double)cap.get("RATEDCAPACITY");
+	double chv = (Double)cap.get("VOLTAGECHANGE");
+	int gid = (Integer)cap.get("GRAPHID");
+  	int onoff = cap.property.getyxById(cap.SWITCHID);  //投入状态  高压设备用连接开关判断
+	zjxt_msg.show("电容:"+name+" "+capid+" 开关ID:"+cap.SWITCHID+" 值:"+onoff + " RATEDCAPACITY:"+fv +" 电压改变量"+chv+" GID:"+gid);
+end;
+
+//电容器策略
+rule "Rule of capacitor" 
+	enabled true 
+	salience 90 
+	when 
+		cap : zCompensator(IsGroup)   
+	then
+		int cs = cap.property.CanControl(); //0:不参与计算; 1:建议 ; 2:控制;
+		String capid = cap.getMrID();
+		String name = cap.getName();
+		//zjxt_msg.show(" debug: 1");
+		//zjxt_msg.show(" cs:"+cs);
+		if(cs <= 0)return;
+		int onoff = -1;  //投入状态  低压设备由设备主控板提供状态信息
+		
+		//动作次数统计 高压电容
+		if(cap.VLID==null || cap.SCHEMEID==null){
+			zjxt_msg.show(name+" VLID or SCHEMEID 字段为NULL");
+			return;
+		}
+		if( cap.VLID.equals("1") && (!cap.SCHEMEID.equals("0") )){//电压等级10kV 且是分组电容 （schemeid不等于0）
+			
+		    int sonoff = cap.property.getyxById(cap.SWITCHID);
+			int ch = cap.property.CheckTarget(30,sonoff);
+			//zjxt_msg.show(name + "ch:"+ch);
+			if(cs == 2){
+				if(ch == 1){
+					zjxt_msg.show(name+" 上次命令执行成功");
+					cap.property.AddSelfActNum(true);
+				}else if(ch == 0){
+					zjxt_msg.show(name+" 上次命令执行失败.");
+					cap.property.AddSelfActNum(false);
+				}else if(ch == 2){
+					zjxt_msg.show("等待上次命令执行结果.");
+				}
+			}
+		}
+		//zjxt_msg.show(" debug: 2 ");
+		//设备投运时间计算逻辑
+		if(cap.property.runtimetag >= 12){  //每分统计下投运和停运时间		12*5=60s
+			
+			boolean btmp = true;
+			cap.property.runtimetag = 0;
+			if(cap.VLID.equals("3")){  //低压
+				Date t = cap.property.getyctime("UAYCID");
+				long between = cap.property.SecondFromTime(t);
+				//zjxt_msg.show(" UA刷新时间:"+t+" 间隔秒数:"+between);
+				btmp = (between <= 300);//5*60s			刷新时间小于5分钟算投运      
+			}else if(!cap.SCHEMEID.equals("0")) {  //高压  祥云高压部分特殊处理分别统计内部分组时间，设备本身无法统计。
+				onoff = cap.property.getyxById(cap.SWITCHID);  //投入状态  高压设备用连接开关判断
+				//zjxt_msg.show(" 开关ID:"+cap.SWITCHID+" 值:"+onoff);
+				btmp = (onoff == 1);
+			}
+			if(btmp)  
+				cap.property.UpdateRunTime(1,1);  //1; 投运 时间累加1分钟
+			else
+				cap.property.UpdateRunTime(0,1);  //0; 停运时间累加1分钟。	
+		}
+		cap.property.runtimetag++;
+		
+		
+		//zjxt_msg.show(" debug: 3 ");
+		//闭锁判断
+		if(cap.property.IsLocked()){
+			return;
+		}	
+		
+		
+		//zjxt_msg.show(name+"处理"); // debug
+		
+		String head;
+		String kind;
+		if(cs == 2){
+			head = "命令;";
+			kind = zjxt_msg.KongZhi;
+		}
+		else{
+			head = "建议;";
+			kind = zjxt_msg.JianYi;
+		}	
+		String info;
+		String sound = "";
+
+		//zjxt_msg.show(name+" vid:"+ cap.VLID);
+		//zjxt_msg.show(" debug: 4");
+		if(cap.VLID.equals("3")){	 //电压等级220V	
+		
+			float ua = cap.property.getyc("UAYCID");
+			float ub = cap.property.getyc("UBYCID");
+			float uc = cap.property.getyc("UCYCID");
+			float cos = cap.property.getyc("COSYCID");	
+				
+			info = name + " A相:"+ua+" B相:"+ub+" C相:"+uc+" 功率因数:"+cos;
+			zjxt_msg.show(info);
+			float vmin = GetMinVol(ua,ub,uc);
+			float vmax = GetMaxVol(ua,ub,uc);
+			
+			LimitValue lv = Limit.GetVolLimit(capid);
+			if(lv == null){
+				zjxt_msg.show(name+"没有设定220v电压时段限值.");
+				lv = Limit.GetLimitByNameNoTime("220V通用电压限值");
+				if(lv == null){
+					zjxt_msg.show(name+"没有220v通用电压限值.");
+					return;
+				}
+			}
+			
+			zjxt_msg.show(name+" 电压上限:"+lv.up+" 电压下限"+lv.lo);
+			
+			if(vmax>=260 || vmin<=150){
+				cap.property.SetException(info+" 220V电压量测异常");
+				return;
+			}
+			if(cos<0 || cos>1.0001f){
+				cap.property.SetException("功率因数量测异常 cos="+cos);
+				return;
+			}
+			
+			//电容模式切换 1 电压优先； 0 无功优先
+			if(vmax >= lv.up || vmin <= lv.lo){
+				int mode = (int)cap.property.getyc("MODEYCID");	
+				if(mode != 1){
+					info = name+" 电压将越限,将设置电容运行方式为电压优先";
+					sound = head+info;
+					cap.property.setyt("控制方式", 1, kind, "运行方式", info,sound);	
+					return;
+				}
+			}	
+			if((vmax+15)  < lv.up || (vmin - 15) > lv.lo){ //电压不越限，甚至范围更小15V的情况下，设置为无功优先模式
+				int mode = (int)cap.property.getyc("MODEYCID");	
+				if(mode != 0){
+					info = name+" 电压良好,将设置电容运行方式为无功优先";
+					sound = head+info;
+					cap.property.setyt("控制方式", 0, kind, "运行方式", info,sound);	
+					return;
+				}
+			}
+			
+			if(vmax >= lv.up){
+				float voltage = lv.up;
+				info = info+" 电压越上限,将调节电容电压上限为"+voltage;
+				sound = head+info;
+				cap.property.setyt("vol_up", voltage, kind, zjxt_msg.DY+zjxt_msg.YaoTiao, info,sound);			
+			}else if(vmin <= lv.lo){
+				float voltage = lv.lo;
+				info = info+" 电压越下限,将调节电容电压下限为"+voltage;
+				sound = head+info;
+				cap.property.setyt("vol_low", voltage, kind, zjxt_msg.DY+zjxt_msg.YaoTiao, info,sound);	
+			//}else if(IsNoBlance()){ //如果三相不平衡
+			//	cap.property.SetAlarm(info + " 电压三相不平衡.");
+			}else if(cos<0.9){ //如果cos太低
+				float tcos = 0.99f;
+				info = info+" 功率因数偏低,将调节电容功率因数目标值为 "+tcos;
+				sound = head+info;
+				cap.property.setyt("COS", tcos, kind, zjxt_msg.DY+zjxt_msg.YaoTiao, info,sound);
+			}else{
+				zjxt_msg.show(name+"量测点电压与功率因数正常.");
+			}	
+		}
+		////////////////////////////////////////////////////////////////	
+		if(cap.VLID.equals("1")){       //电压等级10kV
+			//zjxt_msg.show(name+" SCHEMEID:"+cap.SCHEMEID);
+			if(cap.SCHEMEID.equals("0")) 
+				return;
+			
+			onoff = cap.property.getyxById(cap.SWITCHID); //投入状态  高压设备用连接开关判断
+		    
+		    float uab = cap.property.getyc("UYCID");
+		    float cos = cap.property.getyc("COSYCID");	
+					
+			//zjxt_msg.show(info+" 投入状态:"+onoff);
+			
+			LimitValue lv = Limit.GetVolLimit(capid);
+			if(lv == null){
+				zjxt_msg.show(name+"没有设定10kV电压时段限值.");
+				lv = Limit.GetLimitByNameNoTime("10000V通用电压限值");
+				if(lv == null){
+					zjxt_msg.show(name+"没有10kV通用电压限值.");
+					return;
+				}
+			}
+			zjxt_msg.show(name+" 电压上限:"+lv.up+" 电压下限"+lv.lo);
+			
+			if(uab>=12000 || uab<=9000){
+				cap.property.SetException("母线电压量测异常:"+uab);
+				return;
+			}
+			if(cos<0 || cos>1.0001f){
+				cap.property.SetException("功率因数量测异常:"+cos);
+				return;
+			}
+			
+			
+			info = name + " 母线电压:"+uab+" 功率因数:"+cos;
+					
+			if(uab>lv.up){
+				if(onoff == 1){
+					if(!cap.property.IsLeastActEquip(cap.SCHEMEID)){
+						zjxt_msg.show(name+" 不是动作次数最少");
+				        zCompensator other = (zCompensator)cap.property.GetOtherSchemeEquip(cap.SCHEMEID);
+				        if( other.property.getyxById(other.SWITCHID)==1 ){
+				        	return;
+				        }
+				        zjxt_msg.show("同组其他支路已切除");
+				    }
+				        
+					info = info + "电压越上限,将切除该电容";
+					sound = head+info;
+					
+					cap.property.SetSchemeLock(cap.SCHEMEID);  //联动闭锁
+					cap.property.setyk(0, kind, "切除",info,sound);			
+					cap.property.SetTarget(1,0);
+					
+				}else{
+					zjxt_msg.show(name+" 已切除");
+					zCompensator other = (zCompensator)cap.property.GetOtherSchemeEquip(cap.SCHEMEID);
+				    if( other.property.getyxById(other.SWITCHID)==0 ){
+				        cap.property.SetAlarm(info + " 当前电压偏高,电容所有支路已切除,无调节手段,请人工处理。");
+				    }
+				    return;
+				    
+				}
+			}
+			else if(uab < lv.lo){
+				if(onoff == 0){
+					if(!cap.property.IsLeastActEquip(cap.SCHEMEID)){
+						zjxt_msg.show(name+" 不是动作次数最少");
+				        zCompensator other = (zCompensator)cap.property.GetOtherSchemeEquip(cap.SCHEMEID);
+				        if( other.property.getyxById(other.SWITCHID)==0 ){
+				        	return;
+				        }
+				        zjxt_msg.show("同组其他支路已投入");
+				    }
+				
+					info = info + "电压越下限,将投入该电容";
+					sound = head+info;
+					cap.property.SetSchemeLock(cap.SCHEMEID);  //联动闭锁
+					cap.property.setyk(1, kind, "投入",info,sound);	
+					cap.property.SetTarget(0,1);
+				}else
+				{
+					zjxt_msg.show(name+" 已投入");
+					zCompensator other = (zCompensator)cap.property.GetOtherSchemeEquip(cap.SCHEMEID);
+				    if( other.property.getyxById(other.SWITCHID)==1 ){
+				        cap.property.SetAlarm(info + " 当前电压偏低,电容所有支路已投入,无调节手段,请人工处理。");
+				    }
+				    return;
+				    
+				}
+					
+			}
+			else if(cos < 0.9){
+				if((uab + 200)>lv.up){
+					cap.property.SetAlarm(info + " 当前功率因数偏低.但电压已经偏高，请人工处理。");
+				 	return;
+				}else{
+				//setyk(int ykValue,String Kind,String Action,String CmdContent,String Sound)
+						if(onoff == 0){
+							if(!cap.property.IsLeastActEquip(cap.SCHEMEID)){
+							zjxt_msg.show(name+" 不是动作次数最少");
+					        zCompensator other = (zCompensator)cap.property.GetOtherSchemeEquip(cap.SCHEMEID);
+					        if( other.property.getyxById(other.SWITCHID)==0 ){
+					        	return;
+					        }
+					        zjxt_msg.show("同组其他支路已投入");
+					    }
+				        
+						info = info + "功率因数偏低,将投入该电容";
+						sound = head+info;
+						cap.property.SetSchemeLock(cap.SCHEMEID);  //联动闭锁
+						cap.property.setyk(1, kind, "投入",info,sound);
+						
+						cap.property.SetTarget(0,1);
+					}else
+					{
+						zjxt_msg.show(name+" 已投入");
+						zCompensator other = (zCompensator)cap.property.GetOtherSchemeEquip(cap.SCHEMEID);
+					    if( other.property.getyxById(other.SWITCHID)==1 ){
+					        cap.property.SetAlarm(info + " 当前电压偏低,电容所有支路已投入,无调节手段,请人工处理。");
+					    }
+					    return;
+					}
+					
+				}
+			}else{
+				zjxt_msg.show(name+" 情况良好");
+			}
+		}
+	end
+
+
+
+	
+	

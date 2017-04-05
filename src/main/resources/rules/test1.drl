@@ -1,0 +1,57 @@
+//created on: 2016-9-21
+package test
+
+import com.softcore.cim.entity.Equipment;
+import com.drools.zjxt.kernellib.zjxt_CimBuild;
+import com.drools.zjxt.kernellib.zjxt_ConnectionPool;
+import com.drools.zjxt.kernellib.zjxt_Measure;
+import com.drools.zjxt.kernellib.zjxt_Property;
+import com.drools.zjxt.kernellib.Limit;
+import com.drools.zjxt.kernellib.Limit.LimitValue;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.*;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zFeederLine;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zSVG;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zVoltageRegulator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zTransformerFormer;
+import zjxt.zjxt_CommandContent;
+import zjxt.zjxt_State;
+import zjxt2_app.zApf;
+import zjxt2_app.zTpunbalance;
+import com.drools.zjxt.kernellib.zjxt_Measure.*;
+import zjxt.zjxt_msg;
+import zjxt2_app.*;
+import zjxt.zjxt_topo.zNode;
+import zjxt.zjxt_YTKind;
+import zjxt2_app.zjxt_build.FeederLine;
+import com.softcore.cim.entity.PowerSystemResource;
+import java.util.List;
+import java.util.ArrayList;
+import java.lang.Math;
+import com.softcore.cim.entity.container.VoltageLevel;
+
+
+
+//declare any global variables here
+
+
+
+
+rule "feederLine"
+
+    when
+        feederLine : zFeederLine()
+    then
+        boolean canControl = feederLine.isCanControl();
+        zjxt_msg.show("{}正在控制中...", feederLine.getName());
+
+end
+
+rule "Your Second Rule"
+    //include attributes such as "salience" here...
+    when
+        //conditions
+    then
+        //actions
+
+end

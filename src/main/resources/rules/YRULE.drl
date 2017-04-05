@@ -1,0 +1,875 @@
+//created on: 2013-11-10
+package zjxt
+import zjxt.zjxt_msg;
+import com.softcore.cim.entity.PowerSystemResource;
+import com.softcore.cim.entity.*;
+import com.drools.zjxt.kernellib.zjxt_CimBuild;
+import com.drools.zjxt.kernellib.zjxt_ConnectionPool;
+import com.drools.zjxt.kernellib.zjxt_Measure;
+import com.drools.zjxt.kernellib.zjxt_Property;
+import com.drools.zjxt.kernellib.Limit;
+import com.drools.zjxt.kernellib.Limit.*;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.*;
+import com.drools.zjxt.kernellib.zjxt_Measure.*;
+//declare any global variables here
+
+function void show(String str){
+	zjxt_msg.show(str);
+}
+function void showline(String str){
+	zjxt_msg.show("------------------------------------"+str+"------------------------------------");
+}
+//电流畸变率判断及处理函数
+function boolean CurThdIsExceed(zPowerQualityIns psr, float upv){ 
+	float ia = psr.property.getyc("ACURRENTTHDYCID");
+	float ib = psr.property.getyc("BCURRENTTHDYCID");
+	float ic = psr.property.getyc("CCURRENTTHDYCID");
+	String name =psr.getName(); 
+	String info = name +"电流总畸变率 A:" +ia+" B:"+ib+" C:"+ic;
+	
+	//String head =  "系统告警: " + name;
+	boolean r = true;
+	if(ia > upv){
+		info = info + " A相越限.";
+		psr.property.SetAlarm(info);
+	}else if(ib > upv){
+		info = info + " B相越限.";
+		psr.property.SetAlarm(info);
+	}else if(ic > upv){
+		info = info + " C相越限.";
+		psr.property.SetAlarm(info);
+	}else{
+		info = info + " 无越限情况.";
+		r = false;
+	}
+	show(info);
+	return r;
+}
+
+//电压畸变率判断及处理函数
+function boolean ThdIsExceed(zPowerQualityIns psr, float upv){  //三相总畸变率平均值
+	float a = psr.property.getyc("AVOLTHDYCID");
+	float b = psr.property.getyc("BVOLTHDYCID");
+	float c = psr.property.getyc("CVOLTHDYCID");
+	String name =psr.getName(); 
+	String info = name +" 电压总畸变率 A:" +a+" B:"+b+" C:"+c;
+	
+	//String head =  "系统告警: " + name;
+	boolean r = true;
+	if(a > upv){
+		info = info + " A相越限.";
+		psr.property.SetAlarm(info);
+	}else if(b > upv){
+		info = info + " B相越限.";
+		psr.property.SetAlarm(info);
+	}else if(c > upv){
+		info = info + " C相越限.";
+		psr.property.SetAlarm(info);
+	}else{
+		info = info + " 无越限情况.";
+		r = false;
+	}
+	show(info);
+	return r;
+}
+//通过电能质量检测仪判断母线上的那次谐波电流越限。
+function boolean nxbIsExceed(zPowerQualityIns psr,int n, LimitValue lv){
+	boolean r = false;
+	String a = "ACURRENTHARMONIC"+n+"YCID";
+	String b = "BCURRENTHARMONIC"+n+"YCID";
+	String c = "CCURRENTHARMONIC"+n+"YCID";
+    float av = psr.property.getyc(a);  //A相n次谐波电流值
+	float bv = psr.property.getyc(b);  //B相
+	float cv = psr.property.getyc(c);
+	float v = (av+bv+cv)/3;
+	
+	float max = lv.up;
+	if(v > max) //如果3次电流谐波最大则返回3
+		r = true;;	    
+	String info = psr.getName() + n + "次谐波电流 A:" +av+" B:"+bv+" C:"+cv +" Ave:"+v+" 上限:"+max+ " 平均值是否越限:"+r;
+	show(info);
+	return r;
+}
+
+//通过电能质量检测仪判断母线上的那次谐波电流最大。
+function int WhoseHdIsMax(zPowerQualityIns psr){
+	int r = 0;
+    float a3 = psr.property.getyc("ACURRENTHARMONIC3YCID");  //A相3次谐波电流值
+	float b3 = psr.property.getyc("BCURRENTHARMONIC3YCID");  //B相
+	float c3 = psr.property.getyc("CCURRENTHARMONIC3YCID");
+	float v3 = (a3+b3+c3)/3;
+	
+	float a5 = psr.property.getyc("ACURRENTHARMONIC5YCID");  //A相5次谐波电流值
+	float b5 = psr.property.getyc("BCURRENTHARMONIC5YCID");  //B相
+	float c5 = psr.property.getyc("CCURRENTHARMONIC5YCID");
+	float v5 = (a5+b5+c5)/3;
+	
+	float a7 = psr.property.getyc("ACURRENTHARMONIC7YCID");  //A相7次谐波电流值
+	float b7 = psr.property.getyc("BCURRENTHARMONIC7YCID");  //B相
+	float c7 = psr.property.getyc("CCURRENTHARMONIC7YCID");
+	float v7 = (a7+b7+c7)/3;
+	
+	float a9 = psr.property.getyc("ACURRENTHARMONIC9YCID");  //A相9次谐波电流值
+	float b9 = psr.property.getyc("BCURRENTHARMONIC9YCID");  //B相
+	float c9 = psr.property.getyc("CCURRENTHARMONIC9YCID");
+	float v9 = (a9+b9+c9)/3;
+	
+	float a11 = psr.property.getyc("ACURRENTHARMONIC11YCID");  //A相11次谐波电流值
+	float b11 = psr.property.getyc("BCURRENTHARMONIC11YCID");  //B相
+	float c11 = psr.property.getyc("CCURRENTHARMONIC11YCID");
+	float v11 = (a11+b11+c11)/3;
+	
+	
+	if(v3 >= v5 && v3 >= v7 && v3 >= v9 && v3 >= v11) //如果3次电流谐波最大则返回3
+		r = 3;
+	else if(v5 > v3 && v5 >= v7 && v5 >= v9  && v5 >= v11)
+		r = 5;
+	else if(v7 > v3 && v7 > v5 && v7 >= v9 && v7 >= v11)
+	    r = 7;
+	else if(v9 > v3 && v9 > v5 && v9 > v7 && v9 >= v11)
+	    r = 9; 
+	else if(v11 > v3 && v11 > v5 && v11 > v7 && v11 > v9)
+	    r = 11;
+	
+	    
+	show("3次平均电流谐波:"+v3+" 5次平均电流谐波:"+v5+" 7次平均电流谐波:"+v7 + " 9次平均电流谐波:"+v9+" 11次平均电流谐波:"+v11 +  " 最大次:"+r);
+	return r;
+}
+
+//取第n次三相谐波电流平均值
+function float getAverageTsfhd(zTSF t, int n){
+	String fa = "HDIAYCID"+n;
+	String fb = "HDIBYCID"+n;
+	String fc = "HDICYCID"+n;
+	
+	float a = t.property.getyc(fa);   //取谐波电流百分比
+	float b = t.property.getyc(fb);
+	float c = t.property.getyc(fc);
+	
+	float ia = t.property.getyc("IAYCID");  //取电流实际值
+	float ib = t.property.getyc("IBYCID");
+	float ic = t.property.getyc("ICYCID");
+	
+	return (a*ia + b*ib + c*ic)/3;	
+}
+
+function void showtsf_i(zTSF t,int n){
+	String fa = "HDIAYCID"+n;
+	String fb = "HDIBYCID"+n;
+	String fc = "HDICYCID"+n;
+	
+	float a = t.property.getyc(fa);   //取谐波电流百分比
+	float b = t.property.getyc(fb);
+	float c = t.property.getyc(fc);
+	
+	float ia = t.property.getyc("IAYCID");  //取电流实际值
+	float ib = t.property.getyc("IBYCID");
+	float ic = t.property.getyc("ICYCID");
+	
+	float va = a*ia;
+	float vb = b*ib;
+	float vc = c*ic;
+	String info = t.getName()+" 电流 A:"+ia+" B:"+ib+" C:"+ic+ " 谐波百分比 A:"+a+" B:"+b+" C:"+c
+	+ " 谐波电流 A:"+va+" B:"+vb+" C:"+vc;
+	
+	show(info);
+}
+
+//取第3次三相谐波电流最大的TSF设备,且该设备的一次支路没有投入。
+function zTSF getMaxHdi3_1(zTSF[] tsfs){
+	zTSF r = null;
+	float max = -1;
+	show("取第3次谐波电流最大的TSF设备,且该设备的第1支路没有投入");
+	for(int i=0; i<tsfs.length; i++){
+		zTSF t = tsfs[i];
+		if(t.Tag == 999) continue;
+		if(t.property.IsLocked()) continue;
+		int s1 = t.property.getyx("CAPACITANCE_1YXID");
+		show(t.getName()+"第1支路投切状态:"+s1);
+		if(s1 == 1) continue;  
+		
+		float tmp = getAverageTsfhd(t,3);
+		if(max < tmp){
+			r = t;
+			max = tmp;
+		}
+	}
+	if(r != null)
+		showtsf_i(r,3);
+	return r;
+}
+
+//取第3次三相谐波电流最大的TSF设备,且该设备的二次支路没有投入。
+function zTSF getMaxHdi3_2(zTSF[] tsfs){
+	zTSF r = null;
+	float max = -1;
+	show("取第3次谐波电流最大的TSF设备,且该设备的第二支路没有投入");
+	for(int i=0; i<tsfs.length; i++){
+		zTSF t = tsfs[i];	
+		if(t.Tag == 999) continue;
+		if(t.property.IsLocked()) continue;	
+		int s1 = t.property.getyx("CAPACITANCE_2YXID");
+		show(t.getName()+"第2支路投切状态:"+s1);
+		if(s1 == 1) continue;  
+		float tmp = getAverageTsfhd(t,3);
+		if(max < tmp){
+			r = t;
+			max = tmp;
+		}
+	}
+	if(r != null)
+		showtsf_i(r,3);
+	return r;
+}
+
+//取第n次三相谐波电流最大的TSF设备,且该设备的二次支路没有投入。
+function zTSF getMaxHdi(zTSF[] tsfs, int n){
+	zTSF r = null;
+	float max = -1;
+	for(int i=0; i<tsfs.length; i++){
+		zTSF t = tsfs[i];	
+		if(t.Tag == 999) continue;
+		if(t.property.IsLocked()) continue;
+		int s1 = t.property.getyx("CAPACITANCE_1YXID");	
+		int s2 = t.property.getyx("CAPACITANCE_2YXID");
+		if(s1 == 1 && s2 == 1) continue;  
+		float tmp = getAverageTsfhd(t,n);
+		if(max < tmp){
+			r = t;
+			max = tmp;
+		}
+	}
+	if(r != null)
+		showtsf_i(r,n);
+	return r;
+}
+//TSF电压越限判断函数,返回值 0 无越限; 1 UA越下限;2 UB越下限;3 UC越下限; 4 UA越上限 ..5 UB,6 UC .
+//10 cos越下限；11 cos <0
+function int TsfIsExceed(zTSF psr, LimitValue vol, LimitValue cos){
+	int r = 0;
+	String msg = "";
+	float va = psr.property.getyc("UAYCID");
+	float vb = psr.property.getyc("UBYCID");
+	float vc = psr.property.getyc("UCYCID");
+	
+	if(va >= vol.upup){
+		r = 4;
+		msg = "A相越上上限";
+	}else if(vb >= vol.upup){
+		r = 5;
+		msg = "B相越上上限";
+	}else if(vc >= vol.upup){
+		r = 6;
+		msg = "C相越上上限";
+	}else if(va <= vol.lolo){
+		r = 1;
+		msg = "A相越下下限";
+	}else if(vb <= vol.lolo){
+		r = 2;
+		msg = "B相越下下限";
+	}else if(vc <= vol.lolo){
+		r = 3;
+		msg = "C相越下下限";
+	}else{
+		r = 0;
+	}
+	
+	if( r == 0){
+		float acos = psr.property.getyc("POWERFACTORAYCID");  //A相功率因数
+		msg = " Cos: "+acos;
+		if(acos < cos.lo && acos >= 0){
+			r = 10;
+			msg = msg+" 功率因数越下限 "+ cos.lo;
+		}else if(acos < 0){
+			r = 11;
+			msg = msg+" 功率因数小于0";
+		}
+	}
+	String info = psr.getName()+"电压 A:"+va+" B:"+vb+" C:"+vc+ msg;
+	show(psr.getName()+"电压 A:"+va+" B:"+vb+" C:"+vc+ msg);
+	if(r != 0){
+		psr.property.SetAlarm("告警;"+info);
+		psr.Tag = 999; //做记号，表示本次计算周期该设备电压越限。
+	}else{
+		psr.Tag = 0;
+	}
+	return r;
+}
+
+//tsf 电压检查
+function int TsfVolCheck(zTSF psr, LimitValue vol){
+	int r = 0;
+	String msg = "";
+	float va = psr.property.getyc("UAYCID");
+	float vb = psr.property.getyc("UBYCID");
+	float vc = psr.property.getyc("UCYCID");
+	
+	if(va >= vol.upup){
+		r = 4;
+		msg = " A相越上上限";
+	}else if(vb >= vol.upup){
+		r = 5;
+		msg = " B相越上上限";
+	}else if(vc >= vol.upup){
+		r = 6;
+		msg = " C相越上上限";
+	}else if(va <= vol.lolo){
+		r = 1;
+		msg = " A相越下下限";
+	}else if(vb <= vol.lolo){
+		r = 2;
+		msg = " B相越下下限";
+	}else if(vc <= vol.lolo){
+		r = 3;
+		msg = " C相越下下限";
+	}else{
+		r = 0;
+	}
+	
+	String info = psr.getName()+"电压 A:"+va+" B:"+vb+" C:"+vc+ msg;
+	show(info);
+	if(r != 0){
+		psr.property.SetAlarm("告警;"+info);
+		psr.Tag = 999; //做记号，表示本次计算周期该设备电压越限。
+	}else{
+		psr.Tag = 0;
+	}
+	return r;
+}
+
+//TSF电压越限逻辑 
+
+function int TsfVolLogic(zTSF[] tsfs, LimitValue lv){  //, LimitValue cos 参数暂取消
+	String head = "告警;";
+	String name;
+	String id;
+	String ykname;
+	int r = 0; //记录有几个TSF发送模式改变
+	show("TSF电压及功率因数越限检查...");
+	for(int i=0;i<tsfs.length; i++){
+		zTSF t = tsfs[i];
+		if(t.property.IsLocked()) continue;
+		//int n = TsfIsExceed(t,lv,cos);	//TSF电压越限判断函数,返回值 0 无越限; 1 越下限; 2 越上限.
+		int n = TsfVolCheck(t,lv);  //TSF电压越限判断函数,返回值 0 无越限;
+		if(n != 0){
+			r++;
+		}
+		/*
+		id = t.getMrID();
+		name = t.getName();
+		int s2 = t.property.getyx("CAPACITANCE_2YXID");
+		int s1 = t.property.getyx("CAPACITANCE_1YXID");
+		
+		if((n>=4 && n <= 6) || (n == 11)){  //电压越上限处理 或 cos<0
+			//2支路是否投入，是则切除
+			if(s2 == 1){
+				TsfAct(t,"切除",2);		
+			}else{		
+				if(s1 == 1){
+					TsfAct(t,"切除",1);				
+				}
+			}
+		}else if ((n>=1 && n <= 3) || (n==10)){  //电压越下限处理 或 0 < cos < 功率因数下限
+			//2支路是否投入，是则切除
+			if(s1 == 0){
+				TsfAct(t,"投入",1);		
+			}else{		
+				if(s2 == 0){
+					TsfAct(t,"投入",2);				
+				}
+			}
+		}
+		*/
+	}
+	return r;
+}
+
+
+//SVG功率因数，电压判断函数
+function boolean SvgIsExceed(zSVG psr, LimitValue cos, LimitValue vol){
+	boolean r = true;  //假定越线
+	float vcos = psr.property.getyc("COSYCID");
+	float va = psr.property.getyc("UAYCID");
+	//float vb = psr.property.getyc("UBYCID");
+	//float vc = psr.property.getyc("UCYCID");
+	//float average = (va+vb+vc)/3;
+	
+	
+	if((vcos >= cos.lo  && vcos <= cos.up) && (va >= vol.lo && va <= vol.up))
+		r = false;  //未越线
+//	String info = psr.getName() +" 电压  A:" +va+" B:"+vb+" C:"+vc + " cos:"+vcos + " cos上限:"+cos.up+" 下限:"+cos.lo;
+	String info = psr.getName() +" 电压 :" +va+" 上限:"+vol.up+" 下限:"+vol.lo + " cos:"+vcos + " cos上限:"+cos.up+" 下限:"+cos.lo + " 是否存在越限:"+r;
+	show(info);
+	return r;
+}
+
+function String getPQInfo(zPowerQualityIns psr, float value){
+	String info = "告警: "+psr.getName() + " 总畸变率 "+value+" 越限."; 
+	return info;
+}
+
+//TSF设备动作命令函数，branch是支路号
+function void TsfAct(zTSF t, String action,int branch,LimitValue vol){
+	String head;
+	String kind;
+	String info;
+	String name;
+	String id;
+	if(t.property.IsLocked()) return;
+	id = t.getMrID();
+	name = t.getName();
+
+	int cs = t.property.CanControl();
+	if(cs <= 0) return; 
+	if(cs == 2){
+		head = "命令;";
+		kind = zjxt_msg.KongZhi;
+	}
+	else{
+		head = "建议;";
+		kind = zjxt_msg.JianYi;
+	}
+	
+	//if(TsfVolCheck(t,vol) != 0){
+	//	return;
+	//}
+	
+	int mode = t.property.getyx("AUTOCONTROLYKID");  //是否自动模式
+	show(name+" 当前运行模式 (1 自动, 0 手动):"+mode);
+	if(mode == 1){
+		info = head+name+" 将设为手动模式";
+		String ykname = id+"号TSF设备自动0xf0f0=1,手动0x0f0f=0";
+		t.property.setykByName(0,ykname,kind,"定值",info,info);
+	}
+	
+	int tqmode = t.property.getyx("EXCISIONMODEYKID");  //是否滤波（模糊）模式
+	show(name+" 当前投切模式 (1 模糊, 0 线性):"+tqmode);
+	if(tqmode == 0){
+		info = head+name+" 将设为滤波模式";
+		String ykname = id+"号TSF设备投切方式（模糊，线性）";
+		t.property.setykByName(1,ykname,kind,"定值",info,info);
+	}
+	
+	info = head+name+" 将"+action+"第"+branch+"路电容";
+	String ykname = id+"号TSF设备电容"+branch+"投切状态";
+	t.property.setykByName(ykname,kind,action,info,info);
+		
+}
+
+
+
+//单个tsf 改变运行模式
+function int TsfSetMode(zTSF t, int mode){
+	String head;
+	String kind;
+	String action;
+	String info;
+	String name;
+	String id;
+	int r = 0;
+	if(t.property.IsLocked()) return r; 
+    int curmode = t.property.getyx("AUTOCONTROLYKID");  //是否自动模式
+	if(mode != curmode){
+		id = t.getMrID();
+		name = t.getName();	
+		show(name+" 当前运行模式 (1 自动, 0 手动):"+curmode);
+		head = "命令;";
+		kind = zjxt_msg.KongZhi;
+		r = 1;
+		info = head+name+" 将设运行模式为 "+mode;
+		String ykname = id+"号TSF设备自动0xf0f0=1,手动0x0f0f=0";
+		t.property.setykByName(mode,ykname,kind,"定值",info,info);
+	}
+	return r;
+}
+
+//tsf组改变运行模式 批量动作
+function int TsfChangeMode(zTSF[] tsfs, int mode){
+	int r = 0; //记录有几个TSF发送模式改变
+	for(int i=0;i<tsfs.length; i++){
+	  	zTSF t = tsfs[i];
+	  	r = r + TsfSetMode(t, mode);	
+	}
+	return r;
+}
+
+function int TsfChangeModeOne(zTSF[] tsfs, int mode){
+	int r = 0;
+	for(int i=0;i<tsfs.length; i++){
+	  	zTSF t = tsfs[i];
+	  	r = TsfSetMode(t, mode);
+	  	if(r == 1) break;	 //1次循环只找一个设备修改模式
+	}
+	return r;
+}
+
+//TSF设备动作逻辑,tsf组，pq 电能质量仪，h3isExceed 3次谐波是否超标；thdExceed 电压总畸变率是否超标
+function void TsfActLogic(zTSF[] tsfs, zPowerQualityIns pq, boolean h3isExceed,boolean thdExceed,LimitValue vol){
+	
+	String name = pq.getName();
+	show(name+" 电压总畸变率是否越限 "+thdExceed+" 3次谐波是否越限 "+h3isExceed);
+	TsfVolLogic(tsfs,vol);
+	if(thdExceed){ //电压总畸变率越限	
+		int maxhdi = WhoseHdIsMax(pq);
+		show(name +maxhdi+ "次谐波电流最大");
+		if(maxhdi == 3){ 	//如果三次谐波最大
+			show("执行电压总畸变率越限的处理方案(3次谐波电流最大)");
+			zTSF tsf = getMaxHdi3_1(tsfs);  
+			if(tsf != null){
+				TsfAct(tsf, "投入", 1,vol);
+			}else{
+				tsf = getMaxHdi3_2(tsfs);
+				if(tsf != null){
+					TsfAct(tsf, "投入", 2,vol);
+				}
+				else
+					pq.property.SetAlarm("告警;电压畸变率越上限且3次谐波电流最大,暂时无TSF可以动作.");
+			}
+		}else{   //非3次电流谐波最大
+			show("执行电压总畸变率越限的处理方案(非3次谐波电流最大)");
+			zTSF tsf = getMaxHdi(tsfs, maxhdi);  
+			if(tsf != null){
+				int s1 = tsf.property.getyx("CAPACITANCE_1YXID");	
+				//int s2 = tsf.property.getyx("CAPACITANCE_2YXID");
+				if(s1 == 0){
+					TsfAct(tsf, "投入", 1,vol);
+				}
+				else {  //if(s2 == 0)
+					TsfAct(tsf, "投入", 2,vol);
+				}
+			}else{
+				pq.property.SetAlarm("告警;电压畸变率越上限且"+maxhdi+"次谐波电流最大,暂时无TSF可以动作.");
+			}
+		}
+	}else{//电压总畸变率无越限
+		if(h3isExceed){ 	//三次谐波越限
+			show("执行3次谐波电流越限,且电压总畸变率正常的处理方案");
+			zTSF tsf = getMaxHdi3_1(tsfs);  
+			if(tsf != null){
+				TsfAct(tsf, "投入", 1,vol);
+			}else{
+				pq.property.SetAlarm("告警;电压畸变率正常但3次谐波电流越上限,暂时无TSF可以动作.");
+			}
+		}else{   //其他次电流谐波最大
+			show("执行其他谐波电流越限,且电压总畸变率正常的处理方案");
+			int maxhdi = WhoseHdIsMax(pq);
+			show(name +maxhdi+ "次谐波电流最大");
+			zTSF tsf = getMaxHdi(tsfs, maxhdi);  
+			if(tsf != null){
+				int s1 = tsf.property.getyx("CAPACITANCE_1YXID");	
+				//int s2 = tsf.property.getyx("CAPACITANCE_2YXID");
+				if(s1 == 0){
+					TsfAct(tsf, "投入", 1,vol);
+				}
+				else{ //if(s2 == 0)
+					TsfAct(tsf, "投入", 2,vol);
+				}
+			}else{
+				pq.property.SetAlarm("告警;电压畸变率正常但"+maxhdi+"次谐波电流越上限,暂时无TSF可以动作.");
+			}
+		}
+	}
+}
+//global LimitValue lv220;
+
+
+rule "Feedline"
+	enabled true
+	salience 50
+	when
+		fline:zFeederLine()
+	then
+		//确定线路图
+		if(!fline.getMrID().equals("121")) return;
+		showline("TSF");
+		
+		zTSF line1[] = new zTSF[6];
+		zTSF line2[] = new zTSF[5];
+		zTSF line3[] = new zTSF[11];
+		//母线联合
+		line3[0] = (zTSF)fline.GetEquipById("1");
+		line3[1] = (zTSF)fline.GetEquipById("2");
+		line3[2] = (zTSF)fline.GetEquipById("3");
+		line3[3] = (zTSF)fline.GetEquipById("4");
+		line3[4] = (zTSF)fline.GetEquipById("5");
+		line3[5] = (zTSF)fline.GetEquipById("6");
+		line3[6] = (zTSF)fline.GetEquipById("7");
+		line3[7] = (zTSF)fline.GetEquipById("8");
+		line3[8] = (zTSF)fline.GetEquipById("9");
+		line3[9] = (zTSF)fline.GetEquipById("10");
+		line3[10] = (zTSF)fline.GetEquipById("11");
+		//201进线  1#母线
+		line1[0] = (zTSF)fline.GetEquipById("1");
+		line1[1] = (zTSF)fline.GetEquipById("3");
+		line1[2] = (zTSF)fline.GetEquipById("5");
+		line1[3] = (zTSF)fline.GetEquipById("7");
+		line1[4] = (zTSF)fline.GetEquipById("9");
+		line1[5] = (zTSF)fline.GetEquipById("11");
+		//202进线  2#母线
+		line2[0] = (zTSF)fline.GetEquipById("2");
+		line2[1] = (zTSF)fline.GetEquipById("4");
+		line2[2] = (zTSF)fline.GetEquipById("6");
+		line2[3] = (zTSF)fline.GetEquipById("8");
+		line2[4] = (zTSF)fline.GetEquipById("10");
+		
+		//退出运行事件处理	
+		int sysi = fline.property.getYX("专家系统退出");
+		if(sysi == 1){
+			show("YX表专家系统退出状态:"+sysi);
+			zjxt_msg.State2 = 1; //当前RULE执行完后将退出专家系统
+			TsfChangeMode(line3,1); //所有TSF设为自动运行
+		}
+		///////////////////////////////////////////////////////////////////////////////////
+		//
+		//   载入限值
+		//
+		///////////////////////////////////////////////////////////////////////////////////
+		
+		LimitValue thd = Limit.GetLimitByNameNoTime("10000V通用谐波电压总畸变率限值");	
+		if(thd == null){
+			show("10000V通用谐波电压总畸变率限值 未设定");
+			return;
+		}
+		LimitValue lv220 = Limit.GetLimitByNameNoTime("220V通用电压限值");	
+		if(thd == null){
+			show("220V通用电压限值 未设定");
+			return;
+		}
+		
+		LimitValue tsfcos = Limit.GetLimitByNameNoTime("通用功率因数限值");	
+		if(tsfcos == null){
+			show("通用功率因数限值 未设定");
+			return;
+		}
+		
+		//载入谐波限值
+		LimitValue lv3 = Limit.GetLimitByNameNoTime("通用3次谐波");
+		LimitValue lv5 = Limit.GetLimitByNameNoTime("通用5次谐波");
+		LimitValue lv7 = Limit.GetLimitByNameNoTime("通用7次谐波");
+		LimitValue lv9 = Limit.GetLimitByNameNoTime("通用9次谐波");
+		//LimitValue lv11 = Limit.GetLimitByNameNoTime("通用11次谐波");
+		if(lv3 == null || lv5 == null || lv7 == null || lv9 == null){
+			show("通用3，5，7，9次谐波限值未填写完整");
+			return;
+		}
+		//载入svg电压，功率因数限值
+		LimitValue cos = Limit.GetLimitByNameNoTime("通用功率因数限值");
+		LimitValue vol = Limit.GetLimitByNameNoTime("10000V通用电压限值");
+		if(cos == null || vol == null){
+			show("svg电压或功率因数限值为填写");
+			return;
+		}
+		
+		//1#开关遥信ID 12072、2#开关 12070、3#开关 12064、4#开关 12062、联络开关1 12081、联络开关2 12080；
+		int breaker1 = fline.property.getyxById("12072");
+		int breaker2 = fline.property.getyxById("12070");
+		int breaker3 = fline.property.getyxById("12064");
+		int breaker4 = fline.property.getyxById("12062");
+		
+		int jbreaker1 = fline.property.getyxById("12081");
+		int jbreaker2 = fline.property.getyxById("12080");
+		
+		show("1#开关:"+breaker1+" 2#开关:"+breaker2+" 3#开关:"+breaker3+	" 4#开关:"+breaker4+" 1#联络开关:"+jbreaker1+" 2#联络开关:"+jbreaker2);
+		
+		boolean LineIsJoint = (jbreaker1 == 1) || (jbreaker2 == 1);
+		show("1#2#母线是否并列运行:" + LineIsJoint);
+		
+		//   三相总电压畸变率判断
+		zPowerQualityIns pq1 = (zPowerQualityIns)fline.GetEquipById("502");  //1#电能质量检测仪
+		zPowerQualityIns pq2 = (zPowerQualityIns)fline.GetEquipById("503");  //2#	
+
+		//boolean curthd1exceed = CurThdIsExceed(pq1,thd.up);  //1#检测仪电流总畸变率是否越线
+		//boolean curthd2exceed = CurThdIsExceed(pq2,thd.up);  //2#
+		
+		//  svg 功率因数及电压判断
+		zSVG svg1 = (zSVG)fline.GetEquipById("382");
+		zSVG svg2 = (zSVG)fline.GetEquipById("381");
+		boolean svg1exceed = SvgIsExceed(svg1, cos, vol);
+		boolean svg2exceed = SvgIsExceed(svg2, cos, vol);
+		//show("### svg1exceed:"+svg1exceed+" svg2exceed:"+ svg2exceed);
+
+		if(LineIsJoint){  //母线联合	
+			zPowerQualityIns ActivePQI = null;
+			if((breaker1 == 1 || breaker3 == 1) && (breaker2 == 1 || breaker4 == 1)){  	
+				fline.property.SetAlarm("联络开关闭合，两段母线进线并列运行，请人工干预");
+				return;
+			}
+			else if(breaker1 == 1 || breaker3 == 1){  //1,3开关合位，以1#电能质量仪为判据
+				ActivePQI = pq1;
+				show("1#或3#开关闭合，1#电能质量检测仪作为越限判据.");
+			}else if(breaker2 == 1 || breaker4 == 1){   //2,4开关合位，以2#电能质量仪为判据
+				ActivePQI = pq2;
+				show("2#或4#开关闭合，2#电能质量检测仪作为判据.");
+			}else{
+				show("1、2、3、4#开关状态形成的运行模式无法识别.");
+				return;
+			}  
+			
+			if( (!svg1exceed) && (!svg2exceed) ){  //1#2#SVG都没有越限情况
+				boolean thdexceed = ThdIsExceed(ActivePQI,thd.up); //检测仪电压总畸变率是否越线
+				boolean xb3exceed = nxbIsExceed(ActivePQI,3,lv3);    //n次谐波是否越限
+				boolean xb5exceed = nxbIsExceed(ActivePQI,5,lv5);
+				boolean xb7exceed = nxbIsExceed(ActivePQI,7,lv7);
+				boolean xb9exceed = nxbIsExceed(ActivePQI,9,lv9);
+				//boolean xb11exceed = nxbIsExceed(ActivePQI,11,lv11);
+				if(thdexceed || xb3exceed  || xb5exceed  || xb7exceed  || xb9exceed ){  //电压畸变率越限或电流谐波越限
+					TsfActLogic(line3,ActivePQI,xb3exceed,thdexceed, lv220);
+				}else{
+					show("母线谐波情况良好.");
+					TsfChangeModeOne(line3,1); //同组TSF设为自动运行
+				}
+			}else{
+				show("1#2#SVG存在电压或功率因数越限情况，TSF逻辑将等待SVG调节完毕后执行.");
+			}		
+		
+		
+		}else{  //母线分段
+		
+			boolean thd1exceed = ThdIsExceed(pq1,thd.up);  //1#检测仪电压总畸变率是否越线
+			show("1#电压总畸变率是否越限:"+thd1exceed+" 1#svg电压及功率因数是否越限:"+svg1exceed);
+			if(!svg1exceed){
+				boolean xb3exceed = nxbIsExceed(pq1,3,lv3);    //n次谐波是否越限
+				boolean xb5exceed = nxbIsExceed(pq1,5,lv5);
+				boolean xb7exceed = nxbIsExceed(pq1,7,lv7);
+				boolean xb9exceed = nxbIsExceed(pq1,9,lv9);
+				//boolean xb11exceed = nxbIsExceed(pq1,11,lv11);
+				if(thd1exceed || xb3exceed  || xb5exceed  || xb7exceed  || xb9exceed ){  //电压畸变率越限或电流谐波越限
+					TsfActLogic(line1,pq1,xb3exceed,thd1exceed, lv220);
+				}else{
+					//TsfVolLogic(line1,lv220,tsfcos);
+					show("1#母线谐波情况良好.");
+					TsfChangeModeOne(line1,1); //同组TSF设为自动运行
+				}
+			}else{
+				show("1#存在电压或功率因数越限情况，TSF逻辑将等待SVG调节完毕后执行.");
+			}
+			
+			boolean thd2exceed = ThdIsExceed(pq2,thd.up);  //2#检测仪电压总畸变率是否越线
+			show("2#电压总畸变率是否越限:"+thd2exceed+" 2#svg电压及功率因数是否越限:"+svg2exceed);
+			if(!svg2exceed){  // && (!LineIsJoint)		
+				boolean xb3exceed = nxbIsExceed(pq2,3,lv3);		//n次谐波是否越限
+				boolean xb5exceed = nxbIsExceed(pq2,5,lv5);
+				boolean xb7exceed = nxbIsExceed(pq2,7,lv7);
+				boolean xb9exceed = nxbIsExceed(pq2,9,lv9);
+				//boolean xb11exceed = nxbIsExceed(pq2,11,lv11);
+				if(thd2exceed || xb3exceed  || xb5exceed  || xb7exceed  || xb9exceed ){
+					TsfActLogic(line2,pq2,xb3exceed,thd2exceed, lv220);
+				}else {
+					//TsfVolLogic(line2,lv220,tsfcos);
+					show("2#母线谐波情况良好.");
+					TsfChangeModeOne(line2,1); //同组TSF设为自动运行
+	 			}
+			}else{
+				show("2#存在电压或功率因数越限情况，TSF逻辑将等待SVG调节完毕后执行.");
+			}
+		}
+end;
+
+
+
+rule "SVG Rule"
+	enabled true
+	salience 80 
+    //include attributes such as "salience" here...
+    when
+        svg:zSVG();
+    then
+    	showline("SVG");
+    	int cs = svg.property.CanControl(); //-1:状态异常; 0:不参与计算; 1:建议 ; 2:控制;
+		if(cs <= 0)return; 
+		boolean b = svg.property.IsLocked();
+		if(b)return;
+		String name = svg.getName();
+		String id = svg.getMrID();
+		int stat = svg.property.getyx("STATUSYXID");
+		int fault = svg.property.getyx("FAULTYXID");  //故障状态
+		if(stat == 0){	//svg已退出（0为退出，1为投入）
+			zjxt_msg.show(name+" 状态:退出运行 （来自遥信STATUSYXID）");
+			return;
+		}
+		if(fault == 1){	//svg已退出
+			zjxt_msg.show(name+" 状态:故障.");
+			return;
+		}
+    	float ua = svg.property.getyc("UAYCID"); 
+    	float cos = svg.property.getyc("COSYCID"); 		
+    	int mode = svg.property.getyx("MODYXID");		//运行模式 0:cos; 1:voltage
+    	String info;
+    	LimitValue lv10000 = Limit.GetLimitByNameNoTime("10000V通用电压限值");
+		if(lv10000 == null){
+			show("10000V通用电压限值  未定义");
+			return;
+		}
+		
+		LimitValue lvcos = Limit.GetLimitByNameNoTime("通用功率因数限值");
+		if(lvcos == null){
+			show("通用功率因数限值  未定义");
+			return;
+		}
+		
+		
+    	String head;
+		String kind;
+		String alarm = "告警;";
+		String svol = " 电压:";
+		String scos = " 功率因数:";
+		if(cs == 2){
+			head = "命令;";
+			kind = zjxt_msg.KongZhi;
+		}
+		else{
+			head = "建议;";
+			kind = zjxt_msg.JianYi;
+		}
+		zjxt_msg.show(name+svol+ua+scos+cos+" 是否电压模式:"+mode);
+    	zjxt_msg.show(name+" 电压上限:"+lv10000.up+" 下限:"+lv10000.lo+" 上上限:"+lv10000.upup+" 下下限:"+lv10000.lolo + " 功率因数上限:" + lvcos.up+" 功率因数下限:"+lvcos.lo);
+        if(cos < 0){
+        	info = alarm + name+scos+cos+",无功过补偿，请人工处理。";
+        		//zjxt_msg.show(info);
+        	svg.property.SetAlarm(info);
+        	return;
+        }
+        if(ua >= lv10000.lolo && ua <= lv10000.lo){     	//偏下限运行
+        	if(mode == 0){		//当前是cos模式
+        		////setykByName(int ykValue,String ykname,String Kind,String Action,String CmdContent,String Sound)
+        		info = head + name+" 电压:"+ua+",电压偏下限运行，将调节SVG为电压模式。";
+        		svg.property.setykByName(1,"恒电压/恒功率因数",kind,"恒电压",info,info);
+        	}else{
+        		info = alarm + name+svol+ua+scos+cos+",电压偏下限运行(已超过下限)，已在电压优先模式下，请人工处理。";
+        		//zjxt_msg.show(info);
+        		svg.property.SetAlarm(info);
+        	}	   			
+        }
+        else if(ua >= lv10000.lo && ua <= lv10000.up){     	//电压良好，cos优化
+        	if(mode == 1){//当前是电压模式
+        		info = head + name+svol+ua+scos+cos+",电压良好，将调节运行模式为功率因数模式。";
+        		show(info);
+        		svg.property.setykByName(0,"恒电压/恒功率因数",kind,"恒功率因数",info,info);	
+        	}else{
+        		show(name+" 电压良好,"+scos+cos+" 当前已运行在功率因数优先模式下。");
+        	}
+        }
+        else if(ua >= lv10000.up && ua <= lv10000.upup){     	//偏上限运行
+        	if(mode == 0){		//当前是cos模式
+        		info = head + name+" 电压:"+ua+",电压偏上限运行，将调节运行模式为电压模式。";
+        		show(info);
+        		svg.property.setykByName(1,"恒电压/恒功率因数",kind,"恒电压",info,info);
+        		//info = alarm + name+svol+ua+scos+cos+",电压偏上限运行，当前在功率因数模式下，请人工切换为电压优先模式。";
+        		//svg.property.SetAlarm(info);
+        	}else{
+        		info = alarm + name+svol+ua+scos+cos+",电压偏上限运行，当前已在电压优先模式下，请人工处理。";
+        		//zjxt_msg.show(info);
+        		show(info);
+        		svg.property.SetAlarm(info);
+        	}
+        }
+        else if(ua > lv10000.upup){     	//越上上限运行{
+        	info = alarm + name+svol+ua+scos+cos+" 电压已超出设定上上限 "+lv10000.upup+",请人工处理。";
+        	show(info);
+        	svg.property.SetAlarm(info);
+        }else if(ua < lv10000.lolo){     	//越下下限运行{
+        	info = alarm + name+svol+ua+scos+cos+" 电压已低于设定下下限 "+lv10000.lolo+",请人工处理。";
+        	show(info);
+        	svg.property.SetAlarm(info);
+        } 
+end

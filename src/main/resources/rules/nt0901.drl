@@ -1,0 +1,1153 @@
+//created on: 2016-6-24
+package rules;
+
+import com.softcore.cim.entity.Equipment;
+import com.drools.zjxt.kernellib.zjxt_CimBuild;
+import com.drools.zjxt.kernellib.zjxt_ConnectionPool;
+import com.drools.zjxt.kernellib.zjxt_Measure;
+import com.drools.zjxt.kernellib.zjxt_Property;
+import com.drools.zjxt.kernellib.Limit;
+import com.drools.zjxt.kernellib.Limit.LimitValue;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.*;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zFeederLine;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zSVG;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zVoltageRegulator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zTransformerFormer;
+import zjxt2_app.zApf;
+import zjxt2_app.zTpunbalance;
+import com.drools.zjxt.kernellib.zjxt_Measure.*;
+import zjxt.zjxt_msg;
+import zjxt2_app.*;
+import zjxt.zjxt_topo.zNode;
+import zjxt2_app.zjxt_build.FeederLine;
+import com.softcore.cim.entity.PowerSystemResource;
+import java.util.List;
+import java.util.ArrayList;
+import java.lang.Math;
+import com.softcore.cim.entity.container.VoltageLevel;
+
+
+//declare any global variables here
+
+rule "rule"
+
+    when
+       list : List()
+    then
+    	if(!zjxt_CimBuild.canControl) {
+    		zjxt_msg.show("设备控制中...");
+    		return;
+    	}
+    	List equipments = new ArrayList();
+    	for(Object p: list) {
+    		if(p instanceof Equipment) {
+    			if(p instanceof zBusbarSection) {
+    				continue;
+    			}
+    			equipments.add(p);
+    			Equipment e = (Equipment)p;
+    			String name = e.getName();
+    		}
+    	}
+		//List<PowerSystemResource> equipments = line.equipments;
+		zjxt_msg.show("节点数:" + equipments.size()+"");
+        float volRate; //电压合格率
+        int measureErrorSize = 0; //量测错误的设备数量
+        int qualifiedSize = 0; //合格数量
+        int size = equipments.size();
+        
+        for(int i=0; i<size; i++) {
+        	
+        	Equipment equi = (Equipment)equipments.get(i);
+        	String equiName = equi.getName();
+        	zjxt_msg.show(equiName);
+        	
+        	String eid = equi.getMrID();
+	    	//zFeederLine line = null;
+	    	zjxt_Property propPer = equi.prop;
+	    	int vlid = equi.vlid; //电压等级ID
+	    	VoltageLevel voltage = equi.voltage;
+	    	//zjxt_msg.show(equi.getName() + " 电压等级:"+voltage.getHighVoltageLimit());
+	    	if(equi instanceof zCompensator ||
+	    		equi instanceof zVoltageRegulator) {
+	    		if(equi.U>voltage.getHighVoltageLimit() ||
+		    		equi.U<voltage.getLowVoltageLimit()) {
+		    		//equi.prop.SetAlarm(equi.getName() + "当前电压:"+equi.U+"V,判断为量测不准确,请人工检查!");
+		    		equi.prop.SetAlarm("{}当前电压：{}V,判断为量测错误，请人工检查!",equi.getName(), e.U);
+		    		equi.isMeasureError = true;
+		    		measureErrorSize++;
+		    		//return;
+		    	} else {
+		    		equi.isMeasureError = false;
+		    	}
+	    	} else if(equi instanceof zTransformerFormer) {
+	    		if(equi.U>250 ||
+		    		equi.U<180) {
+		    		equi.prop.SetAlarm(equi.getName() + "当前电压:"+equi.U+"V,判断为量测不准确,请人工检查!");
+		    		equi.isMeasureError = true;
+		    		measureErrorSize++;
+		    		//return;
+		    	} else {
+		    		equi.isMeasureError = false;
+		    	}
+	    	} else {
+	    		if(equi.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
+	    			equi.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {
+	    			equi.prop.SetAlarm(equi.getName() + "当前电压:"+equi.U+"V,判断为量测不准确,请人工检查!");
+	    			equi.isMeasureError = true;
+	    			measureErrorSize++;
+		    		//return;
+	    		} else {
+	    			equi.isMeasureError = false;
+	    		}
+	    	}
+	    	
+        	LimitValue lv = Limit.getLimitInPeriod(eid, "电压"); //取限值对象
+        	
+			if(lv == null) {
+				equi.prop.SetAlarm(equi.getName()+"没有当前时段电压限值!");
+				return;
+			}
+			equi.limit = lv;
+			float u = equi.U;
+			zjxt_msg.show(equi.getName() + ":"+ u + "V");
+			if(u<=lv.upup && u>=lv.lolo) { //电压
+				qualifiedSize++;
+			}
+        }
+        
+        volRate = (float) qualifiedSize/(size-measureErrorSize);
+        zjxt_msg.show("当前线路电压合格率:"+String.format("%.2f", volRate * 100) + "%");
+        if(volRate < 1.0f) { //电压合格率小于100%
+        	List<zNode> timinalList = zNode.getTiminalNodes();
+        	for(zNode node : timinalList) {
+	        	Equipment eq = zjxt_CimBuild.getEquipmentById(node.Id);
+				eq.parentId = node.parentId;
+				checkU(eq, node);
+        		//zjxt_msg.show("等待5s钟继续...");
+        		//Thread.sleep(5000);
+        	}
+        } else { //电压合格率100%或者电压量测正确的设备中的电压合格率为100%
+        	//计算无功设备功率因数合格率
+        	for(int i=0; i<size; i++) {
+        		Equipment equi = (Equipment)equipments.get(i);
+        		if("KIND_Q".equals(equi.kind)) { //无功设备
+        			LimitValue lv = Limit.getLimitInPeriod(equi.getMrID(), "功率因数"); //取功率因数限值对象
+					if(equi.isMeasureError==true || lv.lolo<=equi.PF && equi.PF<=lv.upup) { //功率因数合格
+						continue;
+					} else {
+						List<zNode> timinalList = zNode.getTiminalNodes();
+			        	for(zNode node : timinalList) {
+			        		dealReactive(node);
+			        	}
+					}
+        		}
+        	}
+        	//功率因数合格率为100%,进行电压优化
+        	for(int i=0; i<size; i++) {
+        		Equipment equi = (Equipment)equipments.get(i);
+        		if(equi instanceof zTransformerFormer) {
+        			equi.volOptimizeLo = 216;
+        			equi.volOptimizeUp = 227;
+        			equi.loadFactor = Math.sqrt(Math.pow(equi.P,2)+Math.pow(equi.Q,2))/400;
+        			volOptimize(equi);
+        		} else if(equi instanceof zVoltageRegulator) {
+        			equi.volOptimizeLo = 9800;
+        			equi.volOptimizeUp = 10300;
+        			equi.loadFactor = equi.U*equi.I/1000/2000;
+        			volOptimize(equi);
+        		}
+        	}
+        }
+end
+
+
+//电压越上限
+function void handleLimitUp(zNode node, Equipment eq) {
+	if(eq.parentId.equals("-1")) { //当前节点为顶级节点
+		zjxt_msg.show(eq.getName() + "为顶级节点");
+		if(!canOfforDown(eq)) {
+			eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,暂无调节手段,电压越上限,请人工调节!");
+		} else { //当前节点可控
+			List<zNode> nodes = eq.getChildzNodes(node.Id);
+			if(nodes.size() == 0) {
+				zjxt_msg.show(eq.getName() + "没有子节点,动作当前设备");
+				double Umin  = eq.U-eq.limit.upup; //最小需降压
+				double ΔU = caculateUm(eq, false);
+				
+				if(eq instanceof zCompensator) {
+					zCompensator comp = (zCompensator) eq;
+					if(ΔU !=0) { 
+						double targetPF = getTargetPF(eq, eq.Qm);
+						String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
+								",判断为电压越上限,可切除一组电容,将调节目标功率因数为"+targetPF+
+								";预计调节后电压为:"+round(eq.U-ΔU)+"V,"+
+								"功率因数为:"+targetPF+",预计节能:"+round(0.06*eq.Qm+eq.PF*1.5)+"kW";
+						sendYKYT(eq, targetPF*1000, info);
+						return;
+					}
+					
+				} else if(eq instanceof zTransformerFormer || 
+					eq instanceof zVoltageRegulator) {
+					
+					String info = eq.getName() + "当前电压:"+eq.U+"V,当前档位:"+eq.currentStep+"档,判断为电压越上限,将调节降档;预计调节后电压为:" + 
+						caculateU2(eq, true) +"V,档位为:"+(eq.currentStep-1)+"档;";
+					sendYKYT(eq, 0, info);
+					return;
+				} else if(eq instanceof zApf || eq instanceof zTpunbalance) {
+					eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+"V,越上限,但优先治理谐波,暂不进行电压调节,请人工调节!");
+				} else if(
+				//eq instanceof zApf || //APF越上限暂不考虑
+					eq instanceof zSVG 
+				//	|| eq instanceof zTpunbalance
+					) {
+					double ΔQc = 0;
+					if(Umin>ΔU) {
+						ΔQc = ΔU/0.22*10.5*10.5/eq.X;	
+					} else {
+						ΔQc = Umin/0.22*10.5*10.5/eq.X;	
+					}
+					double pf = getTargetPF(eq, ΔQc);
+					String info = eq.getName()+"当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越上限,预计减少"+round(ΔQc)+"kVar无功投入,将调节目标功率因数为:" + pf + ";预计调节后电压为:" +round(eq.U-(Umin<ΔU?Umin:ΔU))+ "V,功率因数为:"+pf;
+					sendYKYT(eq, pf*1000, info);
+					return;
+				}
+				return;
+			} else {
+				double Umin = eq.U - eq.limit.upup; //当前节点最小需降压
+				double childUmin = 0.0f; //所有子节点电压允许下降 除以对应电压等级正常电压的最小值，以方便对不同电压等级的电压进行比较
+				Equipment minChild = null;
+				boolean isFirst = true;
+				for(zNode n : nodes) {
+					Equipment e = zjxt_CimBuild.getEquipmentById(n.Id);	
+					if(isFirst) {
+						if(e.isMeasureError) {
+							continue;
+						}
+						if(e instanceof zTransformerFormer) {
+							childUmin = (e.U - e.limit.lolo)/220;
+						} else if(!(e instanceof zCompensator) && !(e instanceof zVoltageRegulator)) {
+							childUmin = (e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid;
+						}  else {
+							childUmin = (e.U - e.limit.lolo)/e.vlid;
+						}
+						minChild = e;
+						isFirst = false;
+					} else {
+						if(e.isMeasureError) {
+							continue;
+						}
+						if(e instanceof zTransformerFormer) {
+							childUmin = childUmin<(e.U - e.limit.lolo)/220?childUmin:(e.U - e.limit.lolo)/220;
+						} else if(!(e instanceof zCompensator) && !(e instanceof zVoltageRegulator)) {
+							childUmin = childUmin<(e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid? childUmin : (e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid; //取最小值
+							minChild = childUmin<(e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid? minChild : e;
+						} else {
+							childUmin = childUmin<(e.U - e.limit.lolo)/e.vlid? childUmin : (e.U - e.limit.lolo); //取最小值
+							minChild = childUmin<(e.U - e.limit.lolo)/e.vlid? minChild : e;
+						}
+						zjxt_msg.show(eq.getName()+"子节点最小："+childUmin);
+					}
+				}
+				if(childUmin==0) {
+					double ΔU = caculateUm(eq, false);
+					if(eq instanceof zCompensator) { //电容器
+						zCompensator comp = (zCompensator) eq;
+						double targetPF = getTargetPF(eq, eq.Qm);
+						String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
+									",判断为电压越上限,可切除一组电容,将调节功率因数为"+targetPF+
+									";预计调节后电压为:"+round(eq.U-ΔU)+"V,"+
+									"功率因数为:"+targetPF;
+						sendYKYT(eq, targetPF*1000, info);
+						return;
+						//comp.prop.SetAlarm(comp.getName()+"当前电压为:"+comp.U+"V,判断为电压越上限,且暂无调节手段,请人工调节!");
+						
+					} else if(eq instanceof zApf || eq instanceof zTpunbalance) {
+						eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+"V,越上限,但优先治理谐波,暂不进行电压调节,请人工调节!");
+					} else if(eq instanceof zSVG 
+					//|| eq instanceof zApf
+					//|| eq instanceof zTpunbalance
+					 ) {
+						double ΔUm = caculateUm(eq, false); //可降压裕度
+						double targetPF = getTargetPF(eq, eq.Qc); //遥调目标功率因数
+							String info = eq.getName() + "当前电压:"+eq.U+",功率因数为:"+eq.PF+
+								",判断为电压越上限,可减少"+eq.Qc+"kVar无功投入,将调节目标功率因数为"+targetPF+
+								";预计调节后电压为:"+(eq.U-ΔUm)+",功率因数为:"+targetPF;
+							sendYKYT(eq, targetPF*1000, info);
+							return;
+					}
+				}
+				if(Umin/eq.vlid > childUmin) {
+					eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,判断为电压越上限,预计调节后下级节点"+minChild.getName()+"电压越下限,暂无调节手段,请人工调节!");
+				} else {
+					double ΔU = caculateUm(eq, false);
+					if(eq instanceof zCompensator) { //电容器
+						zCompensator comp = (zCompensator) eq;
+						if(ΔU != 0 && Umin<=ΔU && ΔU/eq.vlid<=childUmin) {
+							double targetPF = getTargetPF(eq, eq.Qm);
+							String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
+										",判断为电压越上限,可切除一组电容,将调节功率因数为"+targetPF+
+										";预计调节后电压为:"+round(eq.U-ΔU)+"V,"+
+										"功率因数为:"+targetPF;
+							sendYKYT(eq, targetPF*1000, info);
+							return;
+						}
+						double targetPF = getTargetPF(eq, eq.Qm);
+						String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
+									",判断为电压越上限,可切除一组电容,将调节功率因数为"+targetPF+
+									";预计调节后电压为:"+round(eq.U-ΔU)+"V,"+
+									"功率因数为:"+targetPF;
+						sendYKYT(eq, targetPF*1000, info);
+						return;
+						//comp.prop.SetAlarm(comp.getName()+"当前电压为:"+comp.U+"V,判断为电压越上限,且暂无调节手段,请人工调节!");
+						
+					} else if(eq instanceof zApf || eq instanceof zTpunbalance) {
+						eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+"V,越上限,但优先治理谐波,暂不进行电压调节,请人工调节!");
+					} else if(eq instanceof zSVG 
+					//|| eq instanceof zApf
+					//|| eq instanceof zTpunbalance
+					 ) {
+						double ΔUm = caculateUm(eq, false); //可降压裕度
+						
+						if(ΔUm/eq.vlid<Umin/minChild.vlid) {
+							double targetPF = getTargetPF(eq, eq.Qc); //遥调目标功率因数
+							String info = eq.getName() + "当前电压:"+eq.U+",功率因数为:"+eq.PF+
+								",判断为电压越上限,可减少"+eq.Qc+"kVar无功投入,将调节目标功率因数为"+targetPF+
+								";预计调节后电压为:"+(eq.U-ΔUm)+",功率因数为:"+targetPF;
+							sendYKYT(eq, targetPF*1000, info);
+							return;
+						} else if(ΔUm>childUmin) {
+							double ΔQc = 10.5*childUmin/eq.X;
+							double pf = getTargetPF(minChild, ΔQc);
+							String info = eq.getName()+"当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
+								",判断为电压越上限，可减少"+ΔQc+"kVar无功投入,将调节"+minChild.getName()+"目标功率因数为" + pf+
+								";预计调节后电压为:"+round(eq.U-childUmin)+",功率因数为:"+pf;
+							sendYKYT(minChild, pf*1000, info);
+							return;
+						} else if(Umin<=ΔUm && ΔUm/eq.vlid<=childUmin/minChild.vlid) {
+							double targetPF = getTargetPF(eq, eq.Qc); //遥调目标功率因数
+							String info = eq.getName() + "当前电压为："+eq.U+",功率因数为:"+eq.PF+
+								",判断为电压越上限,可减少"+eq.Qc+"kVar无功投入,将调节目标功率因数为"+targetPF+
+								";预计调节后电压为:"+(eq.U-Umin)+",功率因数为:"+targetPF;
+							sendYKYT(eq, targetPF*1000, info);
+							return;
+						}
+					}
+				}
+			}
+		}
+		
+	} else { //当前节点不是顶级节点，则继续向上查找
+		zjxt_msg.show(eq.getName() + "当前节点不是顶级节点，则继续向上查找");
+		zjxt_msg.show(eq.parentId);
+		Equipment parentEquipment = zjxt_CimBuild.getEquipmentById(eq.parentId);
+		zNode parentNode = node.getParentNode();
+		handleLimitUp(parentNode, parentEquipment);
+	}
+	
+}
+
+/**
+* 电压越下限
+*/
+function void handleLimitLo(zNode node, Equipment eq) {
+	Equipment parent = zjxt_CimBuild.getEquipmentById(eq.parentId); //当前节点父节点
+	//zjxt_msg.show("有功:" + eq.toString());
+	
+	if(eq.U < eq.limit.lolo && parent != null &&
+		parent.U<parent.limit.lolo) { 
+		zjxt_msg.show(eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",电压越下限,且父节点:" + parent.getName()+"电压越下限");
+		handleLimitLo(node.getParentNode(), parent);
+	} else if(eq.U < eq.limit.lolo && parent == null) {
+		zjxt_msg.show(eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,父节点不存在!");
+		if(canOnorUp(eq)) {
+			if(eq instanceof zCompensator) { //父节点是电容器
+				float Umax = eq.limit.upup-eq.U; 
+				double ΔU = caculateUm(eq, true); 
+				if(ΔU != 0 && ΔU<=Umax) {
+					double targetPF = getTargetPF(eq, eq.Qm);
+					String info = eq.getName()+ "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,预计投入一组电容,将调节目标功率因数为"+targetPF+
+								";预计调节后电压为:"+round(eq.U+ΔU)+
+								"V,功率因数为"+targetPF+";预计节能:"+round(0.06*eq.Qm+eq.PF*1.5)+"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				}
+				eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+",判断为电压越下限,暂无有效调节手段,请人工调节!");
+			} else if(eq instanceof zVoltageRegulator ||
+				eq instanceof zTransformerFormer) { //调压器、调压变
+				String info = eq.getName()+"当前电压:"+eq.U+
+					"V,档位:"+eq.currentStep+"档,判断为电压越下限,将执行升档操作;预计调节后电压为:"+
+					caculateU2(eq, true)+
+					"V,档位:"+(eq.currentStep+1)+"档,节能量:"+0+"kW";
+				sendYKYT(eq, 1, info);
+				return;
+			} else if(eq instanceof zSVG ||
+				eq instanceof zApf ||
+				eq instanceof zTpunbalance) { //SVG、APF、三相不平衡
+				double ΔUm = caculateUm(eq, true); 
+				double minU = eq.limit.lolo-eq.U;
+				//zjxt_msg.show("Qm:"+eq.Qm);
+				if(eq.isHarmonicsProblem) {
+					eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,当前谐波指标超标,将优先治理谐波,不进行电压调节!");
+					return;
+				}
+				if(ΔUm < minU) {
+					double targetPF = getTargetPF(eq, eq.Qm);
+					String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,预计投入无功"+round(eq.Qm)+"kVar,将调节目标功率因数为:" + targetPF+
+						",预计调节后电压为:"+round(eq.U+ΔUm)+
+						"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+						"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				} else {
+					double targetPF = getTargetPF(eq, minU/0.22*10.5*10.5/eq.X);
+					String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,预计投入无功"+round(minU/0.22*10.5*10.5/eq.X)+"kVar,将调节目标功率因数为:" + targetPF+
+						",预计调节后电压:"+(eq.U+minU)+
+						"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+						"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				}
+		}
+	} else {
+		eq.prop.SetAlarm(eq.getName() + "当前电压:"+eq.U+"V,判断为电压越下限,当前设备不可控制电压提升,且无上级设备,请人工干预!");
+	}
+} else if(eq.U < eq.limit.lolo && parent !=null &&
+	parent.U>=parent.limit.lolo) {
+	zjxt_msg.show(eq.getName() + "当前电压:"+eq.U+"V,判断为电压越下限,父节点:" + parent.getName() + "电压正常");
+	if(canOnorUp(parent)) {
+		//zjxt_msg.show("父节点:" + parent.getName() + "电压可控制提升");
+		List<zNode> nodes = parent.getChildzNodes(parent.Id);
+		int count = 0;
+		for(zNode n :nodes) {
+			Equipment e = zjxt_CimBuild.getEquipmentById(n.Id);	
+			zjxt_msg.show(e.getName()+e.U);
+			if(e.limit.lolo<=e.U && e.U<=e.limit.upup) {
+				count++;
+			}
+		}
+		float rate = (float)count/nodes.size();
+		
+		if(rate<0.4f) { //电压合格率小于40%
+			if(parent instanceof zCompensator) { //父节点是电容器
+				float Umax = parent.limit.upup-parent.U; 
+				double ΔU = caculateUm(parent, true); 
+				if(ΔU!=0 && ΔU<=Umax) {
+					double targetPF = getTargetPF(parent, parent.Qm);
+					String info = eq.getName() + "当前电压:"+eq.U + "V,判断为电压越下限,同级其他设备电压大部分不合格,将调节上级设备"+parent.getName()+
+								"目标功率因数为"+targetPF+";预计调节后"+parent.getName()+"电压:"+round(parent.U+ΔU)+
+								"V,功率因数为:"+targetPF+";预计节能:"+round(0.06*parent.Qm+parent.PF*1.5)+"kW";
+					double targetU = 0; 
+					if(eq instanceof zTransformerFormer) { //调压变特殊处理
+						targetU = eq.U + ΔU/parent.vlid*220;
+					} else if(!(eq instanceof zCompensator) && !(eq instanceof zVoltageRegulator)) {
+						targetU = eq.U + ΔU/parent.vlid*eq.vlid/Math.sqrt(3);
+					} else {
+						targetU = eq.U + ΔU;
+					}
+					info = info+round(targetU)+"V;预计节能:" + round(0.06*parent.Qm)+"kW";
+					sendYKYT(parent, targetPF*1000, info);
+					return;
+				}
+				
+			}
+		} else { //合格率大于40%
+			if(canOnorUp(eq)) {
+				if(eq instanceof zCompensator) { //父节点是电容器
+					float Umax = eq.limit.upup-parent.U; 
+					double ΔU = caculateUm(eq, true); 
+					
+					if(ΔU!=0 && ΔU<=Umax) {
+						double targetPF = getTargetPF(eq, ΔU*10.5/eq.X);
+						String info = eq.getName()+ "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
+									",判断为电压越下限,同级其他设备电压大部分合格,由自身调节,将调节目标功率因数为"+targetPF+";预计调节后电压:"+round(eq.U+ΔU)+
+									"V,功率因数为:"+getTargetPF(eq, eq.Qm)+";预计节能:"+round(0.06*eq.Qm+eq.PF*1.5)+"kW";
+						sendYKYT(eq, targetPF*1000, info);
+						return;
+					}
+				} else if(eq instanceof zVoltageRegulator ||
+					eq instanceof zTransformerFormer) { //调压器、调压变
+					String info = eq.getName()+"当前电压为:"+eq.U+"V,判断为电压越下限,同级其他设备电压大部分合格,将执行升档操作;预计调节后电压:"+
+						caculateU2(eq, true)+
+						"V;预计节能量:"+0+"kW";
+					sendYKYT(eq, 1, info);
+					return;
+				} else if(eq instanceof zSVG ||
+					eq instanceof zApf ||
+					eq instanceof zTpunbalance) { //SVG、APF、三相不平衡
+					double ΔUm = caculateUm(eq, true); 
+					double minU = eq.limit.lolo-eq.U;
+					if(eq.isHarmonicsProblem) {
+						eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,当前谐波指标超标,将优先治理谐波,不进行电压调节!");
+						return;
+					}
+					if(ΔUm < minU) {
+						double targetPF = getTargetPF(eq, eq.Qm);
+						String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,同级其他设备电压大部分合格,预计投入无功"+eq.Qm+"kVar,将调节目标功率因数为:" + targetPF+
+							",预计调节后电压:"+round(eq.U+ΔUm)+
+							"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+							"kW";
+						sendYKYT(eq, targetPF*1000, info);
+						return;
+					} else {
+						double targetPF = getTargetPF(eq, minU*10.5/eq.X);
+						String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,同级其他设备电压大部分合格,预计投入无功"+minU*10.5/eq.X+"kVar,将调节目标功率因数为:" + targetPF+
+							",预计调节后电压:"+(eq.U+minU)+
+							"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+							"kW";;
+						sendYKYT(eq, targetPF*1000, info);
+						return;
+					}
+				}
+			}
+		}
+			
+	} else {
+		zjxt_msg.show("父节点:" + parent.getName() + "电压不可控制提升");
+		if(canOnorUp(eq)) {
+			//zjxt_msg.show("本级控制");
+			if(eq instanceof zCompensator) { //父节点是电容器
+				float Umax = eq.limit.upup-parent.U; 
+				double ΔU = caculateUm(eq, true); 
+				
+				if(ΔU!=0 && ΔU<=Umax) {
+					double targetPF = getTargetPF(eq, eq.Qm);
+					String info = eq.getName()+ "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
+								",判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,有自身调节,预计投入一组电容,将调节目标功率因数为"+targetPF+
+								";预计调节后电压:"+round(eq.U+ΔU)+
+								"V,功率因数为:"+targetPF+"预计节能:"+round(0.06*eq.Qm)+"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				}
+				
+			} else if(eq instanceof zVoltageRegulator ||
+				eq instanceof zTransformerFormer) { //调压器、调压变
+				//zjxt_msg.show(eq.getName()+eq.stepvoltageincrement);
+				String info = eq.getName()+"当前电压为:"+eq.U+"V,档位:"+eq.currentStep+"档,判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,由自身调节,将执行升档操作;预计调节后电压:"+
+					caculateU2(eq, true)+
+					"V,档位:"+(eq.currentStep+1)+"档;预计节能量:"+0+"kW";
+				sendYKYT(eq, 1, info);
+				return;
+			} else if(eq instanceof zSVG ||
+				eq instanceof zApf ||
+				eq instanceof zTpunbalance) { //SVG、APF、三相不平衡
+				double ΔUm = caculateUm(eq, true); 
+				double minU = eq.limit.lolo-eq.U;
+				if(ΔUm < minU) {
+					double targetPF = getTargetPF(eq, eq.Qm);
+					String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,由自身调节,预计投入无功"+eq.Qm+"kVar,将调节目标功率因数为:" + targetPF+
+						",预计调节后电压:"+round(eq.U+ΔUm)+
+						"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+						"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				} else {
+					double targetPF = getTargetPF(eq, minU*10.5/eq.X);
+					String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,由自身调节,预计投入无功"+minU*10.5/eq.X+"kVar,将调节目标功率因数为:" + targetPF+
+						",预计调节后电压:"+round(eq.U+minU)+
+						"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+						"kW";;
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				}
+			
+			}
+		} else {
+			eq.prop.SetAlarm(eq.getName() + "当前电压:"+eq.U+"V,判断为电压越下限,且本机及上级设备"+parent.getName()+"不可控制升压!");
+		}
+		}
+	}
+}
+
+
+/**
+* 电容器的遥控(暂不使用遥控)
+**/
+function void sendCapYK(zCompensator parent, zCompensator cap, double value , String info) {
+	int cs = parent.property.CanControl(); //控制状态
+	String head = "";
+	String kind = "";
+	if(cs == 1) { //建议
+		head = "建议;";
+		kind = zjxt_msg.JianYi;  //'建议'的拼音
+	} else if(cs == 2) { //控制
+		head = "控制;";
+		kind = zjxt_msg.KongZhi;  //zjxt_msg.KongZhi 静态字符串资源，是'控制'的拼音
+	}
+	String tag = "";
+	if(value == 1) {
+		tag = "投入";
+	} else if(value == 0) {
+		tag = "切除";
+	}
+	
+	cap.oldU = cap.U; //记录当前的电压，等动作成功后计算电抗
+	cap.property.setyk((int)value, kind, tag, info, head+info);
+	cap.property.SetTarget(cap.property.getyxById(cap.SWITCHID),(float)value);
+	
+}
+
+/**
+* 发送遥控遥调
+**/
+function void sendYKYT(Equipment e, double value, String info) {
+	int cs = e.prop.CanControl(); //控制状态
+	String head = "";
+	String kind = "";
+	if(cs == 1) { //建议
+		head = "建议;";
+		kind = zjxt_msg.JianYi;  //'建议'的拼音
+	} else if(cs == 2) { //控制
+		head = "控制;";
+		kind = zjxt_msg.KongZhi;  //zjxt_msg.KongZhi 静态字符串资源，是'控制'的拼音
+	}
+	//有载调压变，则发送遥控命令
+	if(e instanceof zTransformerFormer || 
+		e instanceof zVoltageRegulator) {
+		String tag = "";
+		int step = e.currentStep;
+		if(value == 1) {
+			tag = "升档";
+			step = step+1;
+		} else if(value == 0) {
+			tag = "降档";
+			step = step-1;
+		}
+		e.prop.setyk((int)value, kind, tag, info, head+info);	
+		e.prop.SetTarget((float)e.currentStep, (float)step);
+	}
+	//如果该设备是APF、SVG、三相不平衡、调压器，则发送遥调命令
+	if(e instanceof zApf || 
+		e instanceof zSVG || 
+		e instanceof zTpunbalance ||
+		e instanceof zCompensator) {
+		e.oldU = e.U;
+		e.oldP = e.P; 
+		e.oldPF = e.PF; //记录当前的电压，有功,功率因数，等动作成功后计算电抗
+		e.prop.setyt("目标功率因数", (float)value, kind, zjxt_msg.Cos_ + zjxt_msg.YaoTiao, info, head+info);
+		e.prop.SetTarget(e.TargetPF, (float)value/1000);
+	}
+}
+
+/**
+ * 计算目标功率因数
+ **/
+function double getTargetPF(Equipment e, double ΔQc) {
+	double P = (double) e.P;
+	double Q = (double) e.Q;
+	double PF = (double) e.PF;
+	LimitValue lv = Limit.getLimitInPeriod(e.getMrID(), "功率因数"); //取功率因数限值对象
+	if(e.limit.upup<e.U || (e.limit.lolo<=e.U&&e.U<=e.limit.upup&&e.PF>lv.upup) || e.PF<0) {
+		ΔQc = ΔQc*(-1);
+	}
+	//double targetPF = Math.sqrt((Math.pow(P,2)+Math.pow(Q,2)) / (Math.pow(P,2)+Math.pow(Q-ΔQc,2)));
+	double targetPF = P / Math.sqrt(Math.pow(P,2)+Math.pow(Q-ΔQc,2));
+	
+	targetPF = (double) Double.parseDouble(String.format("%.2f", targetPF));
+	
+	return targetPF;
+}
+
+/**
+ * 是否可切或者可降
+ **/
+function boolean canOfforDown(Equipment e) {
+	int cs = e.prop.CanControl();
+	boolean canControl = zjxt_CimBuild.canControl && e.prop.CanControl()!=0 && !e.prop.IsLocked() && !e.prop.IsProtected() && (e.Qc>0 || e.currentStep>e.lowStep);
+	if(e instanceof zSVG ||
+		e instanceof zApf ||
+		e instanceof zTpunbalance) {
+		canControl = zjxt_CimBuild.canControl && e.isMeasureError == false && e.prop.CanControl()!=0 && !e.prop.IsLocked() && (e.Qc>e.minratedCapacity || e.currentStep>e.lowStep);
+	}
+	zjxt_msg.show("控制状态:" + canControl);
+	return canControl;
+}
+
+/**
+* 是否可投或者可升
+**/
+function boolean canOnorUp(Equipment e) {
+	return zjxt_CimBuild.canControl && e.isMeasureError == false && e.prop.CanControl() != 0 && !e.prop.IsLocked() && (e.Qm>0 || e.currentStep<e.highStep);
+}
+
+function String round(double value) {
+	return String.format("%.2f", value);
+}
+
+//无功优化
+function void dealReactive(zNode node) {
+	Equipment eq = zjxt_CimBuild.getEquipmentById(node.Id);
+	/**
+	if(eq instanceof zApf) {
+		zApf apf = (zApf) eq;
+		float thdu = apf.property.getyc("THDUYCID");
+		float thdi = apf.property.getyc("THDIYCID");
+		int cs = eq.prop.CanControl(); //控制状态
+		String head = "";
+		String kind = "";
+		if(cs == 1) { //建议
+			head = "建议;";
+			kind = zjxt_msg.JianYi;  //'建议'的拼音
+		} else if(cs == 2) { //控制
+			head = "控制;";
+			kind = zjxt_msg.KongZhi;  //zjxt_msg.KongZhi 静态字符串资源，是'控制'的拼音
+		}
+		if(eq.isMeasureError==false && (thdu>=15f || thdi>=15f) && !eq.prop.IsLocked() && zjxt_CimBuild.canControl && 
+			cs != 0) { //电压总谐波含有率>=15% 或 电流总谐波含有率>=15%
+			
+			String info = "";
+			//设置工作模式为0-谐波功能
+			if(thdu>=15f) {
+				info = apf.getName()+"当前电压总谐波含有率为:"+thdu+"%,大于等于15%,将设置工作模式为,谐波工作模式;";
+			} else if(thdi>=15f) {
+				info = apf.getName()+"当前电流总谐波含有率为:"+thdi+"%,大于等于15%,将设置工作模式为,谐波工作模式;";
+			}
+			apf.property.setyt("工作模式", 0, kind, "工作模式"+zjxt_msg.YaoTiao, info, head+info);
+			apf.property.SetTarget(eq.workMode, 0);
+			return;
+		}
+	} else if(eq instanceof zTpunbalance) {
+		zTpunbalance balance = (zTpunbalance) eq;
+		float sxbphd = balance.property.getyc("SXBPHDYCID");
+		//设置工作模式为三相不平衡治理功能
+		int cs = eq.prop.CanControl(); //控制状态
+		String head = "";
+		String kind = "";
+		if(cs == 1) { //建议
+			head = "建议;";
+			kind = zjxt_msg.JianYi;  //'建议'的拼音
+		} else if(cs == 2) { //控制
+			head = "控制;";
+			kind = zjxt_msg.KongZhi;  //zjxt_msg.KongZhi 静态字符串资源，是'控制'的拼音
+		}
+		if(eq.isMeasureError==false && sxbphd>=15f && !eq.prop.IsLocked() && zjxt_CimBuild.canControl && cs != 0) {
+			
+			String info = balance.getName()+"当前三相电流不平衡度为:"+sxbphd+"%,大于等于15%,将设置工作模式为,三相不平衡治理工作模式;";
+			balance.property.setyt("工作模式", 0, kind, "工作模式"+zjxt_msg.YaoTiao, info, head+info);
+			balance.property.SetTarget(eq.workMode, 0);
+			return;
+		}
+	} */
+	
+	//eq.parentId = node.parentId;
+	//zjxt_msg.show("1:"+zjxt_CimBuild.canControl+"\n2:"+eq.prop.CanControl()+"\n3:"+eq.prop.IsLocked());
+	if(eq.prop.CanControl()==0 || 
+		eq.prop.IsLocked() ||
+		eq.isMeasureError==false &&
+		"KIND_V".equals(eq.kind)) { //不可控制 或者量测错误或者是电压设备
+		if(!"-1".equals(node.parentId)) {
+			List<zNode> list = eq.getChildzNodes(node.parentId);
+			for(int i=0; i<list.size(); i++) {
+				zNode no = list.get(i);
+				if(no.Id.equals(eq.Id)) {
+					continue;
+				}
+				Equipment otherEq = zjxt_CimBuild.getEquipmentById(no.Id);
+				if(zjxt_CimBuild.canControl && eq.isMeasureError==false && otherEq.prop.CanControl()!=0 && !otherEq.prop.IsLocked() &&
+					"KIND_Q".equals(otherEq.kind)) {
+					dealQ(otherEq);
+				}
+			}
+		}
+		zNode parentNode = eq.getParentNode();
+		if(parentNode != null) {
+			if(!"-1".equals(parentNode.Id)) {
+				dealReactive(parentNode);
+			}
+			return;
+		}
+		
+	} else if("KIND_Q".equals(eq.kind)) {
+		if(zjxt_CimBuild.canControl && eq.isMeasureError==false && eq.prop.CanControl()!=0 && !eq.prop.IsLocked()) {
+			dealQ(eq);
+		}
+		if(!"-1".equals(node.parentId)) {
+			List<zNode> list = eq.getChildzNodes(node.parentId);
+			for(int i=0; i<list.size(); i++) {
+				zNode no = list.get(i);
+				if(no.Id.equals(eq.Id)) {
+					continue;
+				}
+				Equipment otherEq = zjxt_CimBuild.getEquipmentById(no.Id);
+				if(zjxt_CimBuild.canControl && eq.isMeasureError==false && otherEq.prop.CanControl()!=0 && !otherEq.prop.IsLocked() &&
+					"KIND_Q".equals(otherEq.kind)) {
+					dealQ(otherEq);
+				}
+			}
+		}
+		zNode parentNode = eq.getParentNode();
+		if(parentNode != null) {
+			if(!"-1".equals(parentNode.Id)) {
+				dealReactive(parentNode);
+			}
+			return;
+		}
+	}
+	/**
+	if("KIND_V".equals(eq.kind)) { //电压设备
+		if(eq.limit.lo<=eq.U && eq.U<=eq.limit.up) { //当前电压在优化范围内
+			zNode parentNode = node.getParentNode();
+			if(parentNode != null) {
+				dealReactive(parentNode);
+			}
+			
+		} else if(eq.limit.lo>eq.U) { //当前电压低于优化范围
+			if(canOnorUp(eq)) { //可升档
+				
+				String info = eq.getName() +"当前电压:"+eq.U+"V"+
+					",判断为当前电压非最优状态,将进行升档操作;预期调节后电压为"+caculateU2(eq, true)+"V";
+				sendYKYT(eq, 1, info);
+				return;
+			}
+		} else if(eq.limit.up<eq.U) { //当前电压高于优化范围
+			if(canOfforDown(eq)) { //可升档
+				String kW = String.format("%.2f", eq.stepvoltageincrement/(1+(eq.currentStep-5)*eq.stepvoltageincrement)*0.6*Math.sqrt(3)*eq.U/1000*eq.I*0.85);
+				String info = eq.getName() +"当前电压为"+eq.U+
+					"V,判断为当前电压偏高,将进行降档操作;预期调节后电压为"+caculateU2(eq, false)+"V;预计节能量为:"+kW+"kW";
+				sendYKYT(eq, 0, info);
+				return;
+			}
+		}	
+	}
+	*/
+}
+
+
+function void checkU(Equipment e, zNode node) {
+	if(e instanceof zApf) {
+		zApf apf = (zApf) e;
+		float thdu = apf.property.getyc("THDUYCID");
+		float thdi = apf.property.getyc("THDIYCID");
+		if(e.isMeasureError==false && (thdu>=5f || thdi>=15f) && !e.prop.IsLocked() && zjxt_CimBuild.canControl) { //电压总谐波含有率>=15% 或 电流总谐波含有率>=15%
+			e.isHarmonicsProblem = true;
+		}
+	} else if(e instanceof zTpunbalance) {
+		zTpunbalance balance = (zTpunbalance) e;
+		float sxbphd = balance.property.getyc("SXBPHDYCID");
+		if(e.isMeasureError==false && sxbphd>=15f && !e.prop.IsLocked() && zjxt_CimBuild.canControl) {
+			e.isHarmonicsProblem = true;
+		}
+	}
+	if(e.isMeasureError == false && e.U > e.limit.upup) { //电压越上限
+		zjxt_msg.show(e.getName() + " 电压越上限");
+		handleLimitUp(node, e); 
+	} else if(e.isMeasureError == false && e.U < e.limit.lolo) { //电压越下限
+		//zjxt_msg.show(eq.getName() + " 电压:"+eq.U+"V,越下限!");
+		handleLimitLo(node, e);
+	} else { //电压正常,往上搜索
+		Equipment parent = zjxt_CimBuild.getEquipmentById(e.parentId); //当前节点父节点
+		zNode parentNode = node.getParentNode();
+		if(parent != null && parentNode != null) {
+			checkU(parent, parentNode);
+		}
+	}
+}
+
+/**
+* 根据前后设备动作前后的量测变化计算电抗
+**/
+function caculateX(Equipment e) {
+	if(e instanceof zCompensator) {
+		e.X = (float)(Math.abs(e.U-e.oldU)*10.5/(((zCompensator) e).capacity/2));
+	} else if(e instanceof zVoltageRegulator) {
+		e.X = (float)(Math.abs(e.U-e.oldU)*10.5/(e.P*(Math.tan(Math.acos(e.oldPF))-Math.tan(Math.acos(e.PF)))));
+	} else if(e instanceof zTransformerFormer) {
+		e.X = (float)(Math.abs(e.U-e.oldU)/220*10000*10.5/(e.P*(Math.tan(Math.acos(e.oldPF))-Math.tan(Math.acos(e.PF)))));
+	} else {
+		e.X = (float)(Math.abs(e.U-e.oldU)*Math.sqrt(3)/e.vlid*10000*10.5/(e.P*(Math.tan(Math.acos(e.oldPF))-Math.tan(Math.acos(e.PF)))));
+	}
+	zjxt_CimBuild.writeX(e.getMrID(), e.X); //更新电抗值
+	zjxt_msg.show(e.getName() + "oldapf:" + e.oldPF);
+	zjxt_msg.show(e.getName() + "oldU:" + e.oldU);
+	zjxt_msg.show(e.getName() + "电抗：" + e.X);
+}
+
+/**
+*	计算ΔUm  isUp:是否升压
+**/
+function double caculateUm(Equipment e, boolean isUp) {
+	double ΔUm = 0;
+	if(isUp) { //升压裕度,容量减去当前Qc
+		//zjxt_msg.show("升压:"+e.Qm);
+		if(e instanceof zCompensator|| e instanceof zVoltageRegulator) {
+			ΔUm = e.Qm*e.X/10.5;
+		} else {
+			ΔUm = e.Qm*e.X/10.5/10.5*0.22;
+		}
+	} else { //降压裕度，当前Qc
+		if(e instanceof zCompensator ||
+			e instanceof zVoltageRegulator) {
+			ΔUm = e.Qc*e.X/10.5;
+		} else {
+			ΔUm = e.Qc*e.X/10.5/10.5*0.22;
+		}
+	}
+	return ΔUm;
+}
+
+/**
+* 调压变、调压器每升一档的电压变化
+**/
+function String caculateU2(Equipment e, boolean isUp) {
+	double U2 = 0;
+	if(e instanceof zTransformerFormer ||
+		e instanceof zVoltageRegulator) {
+		if(isUp) {
+			U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)+e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
+		} else {
+			U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)-e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
+		}
+	}
+	return String.format("%.2f", U2);
+}
+
+//处理无功设备
+function void dealQ(Equipment eq) {
+	if("KIND_Q".equals(eq.kind)) { //无功设备
+		LimitValue lv = Limit.getLimitInPeriod(eq.getMrID(), "功率因数"); //取功率因数限值对象
+		if(lv.lolo<=eq.PF && eq.PF<=lv.upup) { //功率因数合格
+			zjxt_msg.show(eq.getName() + "当前功率因数:"+eq.PF+",在合格范围内,情况良好!");
+			return;
+		}
+		
+		if(eq.PF<lv.lolo) { //功率因数<下限值
+			double ΔU = eq.limit.upup-eq.U;
+			double Qq = ΔU*10.5/eq.X;
+			double Qt = Qq > eq.Q? eq.Q : Qq;
+			if(eq instanceof zCompensator) {
+				if(0<Qt && Qt < ((zCompensator)eq).capacity/2 || eq.Qm==0) {
+					zjxt_msg.show(eq.getName() + "节点正常,不动作");
+					/**
+					List<zNode> list = eq.getChildzNodes(eq.parentId);
+					for(int i=0; i<list.size(); i++) {
+						zNode no = list.get(i);
+						if(no.Id.equals(eq.Id)) {
+							continue;
+						}
+						dealReactive(no);
+					}
+					zNode parentNode = eq.getParentNode();
+					
+					if(parentNode != null) {
+						dealReactive(parentNode);
+					}
+					*/
+				} else if(Qt >= ((zCompensator)eq).capacity/2 && eq.Qm>0) {
+					double targetPF = getTargetPF(eq, eq.Qm);
+					if(targetPF>lv.upup) {
+						return;
+					}
+					String info = eq.getName()+"当前电压为:"+eq.U+",功率因数为:"+eq.PF+",无功功率为:"+eq.Q+
+								"kVar,可进行无功优化,将调节目标功率因数为"+targetPF+";预计调节后电压为"+round(eq.U+caculateUm(eq, true))+
+								"V,无功功率为"+round(eq.Q-eq.Qm)+"kVar,功率因数为"+targetPF+",预计节能:"+round(0.06*eq.Qm+eq.PF*1.5)+"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				} else if(eq.Q<0 && eq.Qc>0) { //无功过剩
+					double childUmin = 0.0f; //所有子节点电压允许下降 除以对应电压等级正常电压的最小值，以方便对不同电压等级的电压进行比较
+					List<zNode> nodes = eq.getChildzNodes(eq.Id);
+					Equipment minChild = null;
+					boolean isFirst = true;
+					for(zNode n : nodes) {
+						Equipment e = zjxt_CimBuild.getEquipmentById(n.Id);	
+						if(isFirst) {
+							if(e.isMeasureError==false) continue; 
+							if(e instanceof zTransformerFormer) {
+								childUmin = (e.U - e.limit.lo)/220;
+							} else if(!(e instanceof zCompensator) && !(e instanceof zVoltageRegulator)) {
+								childUmin = (e.U - e.limit.lo)*Math.sqrt(3)/e.vlid;
+							} else {
+								childUmin = (e.U - e.limit.lo)/e.vlid;
+							}
+							minChild = e;
+							isFirst = false;
+						} else {
+							if(e.isMeasureError==false) continue; 
+							if(e instanceof zTransformerFormer) {
+								childUmin = childUmin<(e.U-e.limit.lo)/220?childUmin : e.U-e.limit.lo;
+							} else if(!(e instanceof zCompensator) && !(e instanceof zVoltageRegulator)) {
+								childUmin = childUmin<(e.U - e.limit.lo)*Math.sqrt(3)/e.vlid? childUmin : (e.U - e.limit.lo)*Math.sqrt(3)/e.vlid; //取最小值
+								minChild = childUmin<(e.U - e.limit.lo)*Math.sqrt(3)/e.vlid? minChild : e;
+							} else {
+								childUmin = childUmin<(e.U - e.limit.lo)/e.vlid? childUmin : (e.U - e.limit.lo); //取最小值
+								minChild = childUmin<(e.U - e.limit.lo)/e.vlid? minChild : e;
+							}
+							
+						}
+					}
+					
+					if(childUmin==0) {
+						double targetPF = getTargetPF(eq, eq.Qm);
+						String info = eq.getName()+"当前电压为:"+eq.U+",功率因数为:"+eq.PF+",无功功率为:"+eq.Q+
+							",可进行无功优化,将调节功率因数为"+targetPF+";预计调节后电压为"+round(eq.U+Qt*eq.X/10.5)+
+							"V,无功功率为"+round(eq.Q-eq.Qm)+"kVar,功率因数为"+targetPF;
+						sendYKYT(eq, targetPF, info);
+						return;
+					}
+					if((caculateUm(eq, true)/eq.vlid < childUmin)) {
+						double targetPF = getTargetPF(eq, eq.Qm);
+						String info = eq.getName()+"当前电压为:"+eq.U+",功率因数为:"+eq.PF+",无功功率为:"+eq.Q+
+							",可进行无功优化,将调节功率因数为"+targetPF+";预计调节后电压为"+round(eq.U+Qt*eq.X/10.5)+
+							"V,无功功率为"+round(eq.Q-eq.Qm)+"kVar,功率因数为"+targetPF;
+						sendYKYT(eq, targetPF, info);
+						return;
+					}
+				}
+			} else if(
+			//eq instanceof zTpunbalance ||
+			//	eq instanceof zApf ||
+				eq instanceof zSVG) {
+				if(0<Qt && Qt < eq.Qm) {
+					double targetPF = getTargetPF(eq, Qt);
+					targetPF = targetPF>lv.upup? lv.upup : targetPF;
+					targetPF = (double) Double.parseDouble(String.format("%.2f", targetPF));
+					String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+						";将调节目标功率因数为:"+targetPF+",预期电压为:"+round(eq.U+Qt*eq.X/10.5/10.5*0.22)+"V"+
+						",无功功率为:"+round(eq.P*Math.tan(Math.acos(targetPF)))+"kVar,功率因数为:"+targetPF+
+						";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+						"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				} else if(0<eq.Qm && eq.Qm<Qt) {
+					double targetPF = getTargetPF(eq, eq.Qm);
+					targetPF = targetPF>lv.upup?lv.upup:targetPF;
+					targetPF = (double) Double.parseDouble(String.format("%.2f", targetPF));
+					String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+						";将调节目标功率因数为:"+targetPF+",预期电压为:"+round(eq.U+eq.Qm*eq.X/10.5/10.5*0.22)+"V"+
+						",无功功率为:"+round(eq.P*Math.tan(Math.acos(targetPF)))+"kVar,功率因数为:"+targetPF+
+						";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
+						"kW";
+					sendYKYT(eq, targetPF*1000, info);
+					return;
+				} else if((eq.minratedCapacity-eq.Qc)<eq.Q && eq.Q<0) {
+					double targetPF = getTargetPF(eq, Math.abs(eq.minratedCapacity-eq.Qc));
+					targetPF = targetPF<lv.upup?lv.upup:targetPF;
+					targetPF = (double) Double.parseDouble(String.format("%.2f", targetPF));
+					String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+							";判断为无功过剩,将调节目标功率因数为:"+targetPF+",预期电压为:"+round(eq.U+Math.abs(eq.Q)*eq.X/10.5)+"V"+
+							",无功功率为:"+round(eq.P*Math.tan(Math.acos(targetPF)))+"kVar,功率因数为:"+targetPF;
+						sendYKYT(eq, targetPF*1000, info);
+						return;
+				} else if(eq.Q<(eq.minratedCapacity-eq.Qc) && (eq.minratedCapacity-eq.Qc)<0) {
+					eq.prop.SetAlarm(eq.getName() + "点无功过剩,且现有调节手段无法校正,请人工干预!");
+				}
+			}
+		}
+		
+		if(eq.PF>lv.upup) { //当前功率因数>上限值
+			double childUmin = 0.0f; //所有子节点电压允许下降 除以对应电压等级正常电压的最小值，以方便对不同电压等级的电压进行比较
+			List<zNode> nodes = eq.getChildzNodes(eq.Id);
+			Equipment minChild = null;
+			boolean isFirst = true;
+			for(zNode n : nodes) {
+				Equipment e = zjxt_CimBuild.getEquipmentById(n.Id);	
+				if(isFirst) {
+					if(e.isMeasureError==false) continue; 
+					if(e instanceof zTransformerFormer) {
+						childUmin = (e.U - e.limit.lo)/220;
+					} else if(!(e instanceof zCompensator) && !(e instanceof zVoltageRegulator)) {
+						childUmin = (e.U - e.limit.lo)*Math.sqrt(3)/e.vlid;
+					} else {
+						childUmin = (e.U - e.limit.lo)/e.vlid;
+					}
+					minChild = e;
+					isFirst = false;
+				} else {
+					if(e.isMeasureError==false) continue; 
+					if(e instanceof zTransformerFormer) {
+						childUmin = childUmin<(e.U-e.limit.lo)/220?childUmin : e.U-e.limit.lo;
+					} else if(!(e instanceof zCompensator) && !(e instanceof zVoltageRegulator)) {
+						childUmin = childUmin<(e.U - e.limit.lo)*Math.sqrt(3)/e.vlid? childUmin : (e.U - e.limit.lo)*Math.sqrt(3)/e.vlid; //取最小值
+						minChild = childUmin<(e.U - e.limit.lo)*Math.sqrt(3)/e.vlid? minChild : e;
+					} else {
+						childUmin = childUmin<(e.U - e.limit.lo)/e.vlid? childUmin : (e.U - e.limit.lo); //取最小值
+						minChild = childUmin<(e.U - e.limit.lo)/e.vlid? minChild : e;
+					}
+					
+				}
+			}
+			double Um;
+			if(childUmin!=0) {
+				Um = (eq.U-eq.limit.lo)/eq.vlid<childUmin? (eq.U-eq.limit.lo):childUmin*eq.vlid;
+			} else {
+				Um = eq.U-eq.limit.lo;
+			}
+			if(nodes.size()==0) {
+				Um = (eq.U-eq.limit.lo)*Math.sqrt(3)/eq.vlid*10500;
+			}
+			double q = 10.5*Um/eq.X;
+			if(eq instanceof zCompensator) {
+				if(q<((zCompensator)eq).capacity/2 || eq.Qc==0) {
+					zjxt_msg.show("不动作");
+				}
+				if(q>((zCompensator)eq).capacity/2) {
+					double targetPF = getTargetPF(eq, ((zCompensator)eq).capacity/2);
+					if(targetPF<lv.lolo) {
+						zjxt_msg.show("不动作");
+					} else {
+						String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+							";可切除一组电容,将调节目标功率因数为:"+targetPF+",预期电压为:"+round(eq.U-Math.abs(eq.Q)*eq.X/10.5/10.5*0.22)+"V"+
+							",无功功率为:"+round(eq.Q + ((zCompensator)eq).capacity/2)+"kVar,功率因数为:"+targetPF;
+						sendYKYT(eq, targetPF*1000, info);
+						return;							
+					}
+				}
+			} else if(eq instanceof zSVG) {
+				if(q<(eq.Qc-eq.minratedCapacity)) {
+					double targetPF = getTargetPF(eq, q);
+					if(targetPF<lv.upup) {
+						String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+							";功率因数非最优,将调节目标功率因数为:"+lv.upup+",预期电压为:"+round(eq.U-Math.abs(eq.Q)*eq.X/10.5/10.5*0.22)+"V"+
+							",无功功率为:"+round(eq.P*Math.tan(Math.acos(lv.upup)))+"kVar,功率因数为:"+lv.upup;
+						sendYKYT(eq, lv.upup*1000, info);
+						return;	
+					} else {
+						String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+							";功率因数非最优,将调节目标功率因数为:"+targetPF+",预期电压为:"+round(eq.U-Math.abs(eq.Q)*eq.X/10.5/10.5*0.22)+"V"+
+							",无功功率为:"+round(eq.P*Math.tan(Math.acos(targetPF)))+"kVar,功率因数为:"+targetPF;
+						sendYKYT(eq, targetPF*1000, info);
+						return;	
+					}
+				}
+				if(q>(eq.Qc-eq.minratedCapacity)) {
+					double targetPF = getTargetPF(eq, eq.Qc-eq.minratedCapacity);
+					if(targetPF<lv.upup) {
+						String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+							";功率因数非最优,将调节目标功率因数为:"+lv.upup+",预期电压为:"+round(eq.U-Math.abs(eq.Qc-eq.minratedCapacity)*eq.X/10.5/10.5*0.22)+"V"+
+							",无功功率为:"+round(eq.P*Math.tan(Math.acos(lv.upup)))+"kVar,功率因数为:"+lv.upup;
+						sendYKYT(eq, lv.upup*1000, info);
+						return;	
+					} else {
+						String info = eq.getName() + "当前电压为:"+eq.U+"V,无功功率为:"+eq.Q+"kVar,功率因数为:"+eq.PF+
+							";功率因数非最优,将调节目标功率因数为:"+targetPF+",预期电压为:"+round(eq.U-Math.abs(q)*eq.X/10.5/10.5*0.22)+"V"+
+							",无功功率为:"+round(eq.P*Math.tan(Math.acos(targetPF)))+"kVar,功率因数为:"+targetPF;
+						sendYKYT(eq, targetPF*1000, info);
+						return;	
+					}
+				}
+			}
+			
+		}
+		
+	}
+}
+
+/**
+* 电压优化
+**/
+function void volOptimize(Equipment e) {
+	if(e.isMeasureError==false) return;
+	if(e.loadFactor>=0.5 && e.U<e.volOptimizeLo) { //若当前负载率>30%，电压<优化范围下限，遥控升档 
+		String info = e.getName() + "当前档位为"+e.currentStep+",负载率为"+e.loadFactor*100+"%,大于30%,电压为"+
+			e.U+"V,小于优化范围下限"+e.volOptimizeLo+",将遥控升档操作;预计调节后电压为"+caculateU2(e, true)+"V";
+		sendYKYT(e, 1, info);
+	} else if(e.loadFactor>=0.5 && e.U>=e.volOptimizeLo) { //若当前负载率>=50%，电压>=优化范围下限，不动作
+		
+	} else if(e.loadFactor<=0.3 && e.U<=e.volOptimizeUp) { //若当前负载率<=30%，电压<优化范围上限，不动作
+		
+	} else if(e.loadFactor<=0.5 && e.U>e.volOptimizeUp) { //若当前负载率<50%，电压>优化范围上限，遥控降档
+		String info = e.getName() + "当前档位为"+e.currentStep+",负载率为"+e.loadFactor*100+"%,小于50%,电压为"+
+			e.U+"V,大于优化范围上限"+e.volOptimizeUp+",将遥控降档操作;预计调节后电压为"+caculateU2(e, false)+"V";
+		sendYKYT(e, 0, info);
+	} 
+}

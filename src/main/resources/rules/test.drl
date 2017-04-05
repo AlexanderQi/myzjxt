@@ -1,0 +1,75 @@
+ package zjxt;
+ 
+import zjxt.zjxt_msg;
+import com.softcore.cim.entity.PowerSystemResource;
+import com.softcore.cim.entity.*;
+import java.util.Date;
+
+import com.drools.zjxt.kernellib.zjxt_CimBuild;
+import com.drools.zjxt.kernellib.zjxt_ConnectionPool;
+import com.drools.zjxt.kernellib.zjxt_Measure;
+import com.drools.zjxt.kernellib.zjxt_Property;
+import com.drools.zjxt.kernellib.Limit;
+import com.drools.zjxt.kernellib.Limit.*;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.*;
+import com.drools.zjxt.kernellib.zjxt_Measure.*;
+
+
+
+//import com.softcore.cim.entity.container.*
+
+rule "rule0 Initialization"
+	salience 1000
+	no-loop 
+	enabled true
+	when 
+		obj : Object(true)
+	then
+		zjxt_msg.State1++;
+		zjxt_msg.show("rule0-> global variable Sign:"+ zjxt_msg.State1);
+		if(zjxt_msg.State1 > 20)
+			zjxt_msg.State1 = 1;//zjxt_msg.State2 = 1;
+end
+
+rule "rule load limit"
+	enabled false
+	when 
+		obj : PowerSystemResource(true);
+	then
+	
+		LimitValue vol = Limit.GetLimitByNameNoTime("10000V通用电压限值");  //10000V通用电压限值  10000V通用电压限值
+		if(vol == null){
+			zjxt_msg.show("10000V通用电压限值 未定义");
+			return;
+		}else{
+			zjxt_msg.show("sss"+vol.up+"sss"+vol.lo);
+		}
+		
+		zjxt_msg.show("rule1->"+obj.getName()+" parentid:"+obj.parentid+" groupid:"+obj.groupid+" graphid:"+obj.graphid);
+end
+
+rule "setvalue"
+	enabled true
+	when 
+		obj : zFeederLine()
+	then
+		 //添加全局属性 值类型不限
+		obj.set("新属性", "新属性1");//添加新属性1
+		Date t = (Date) obj.get("test time");  //取时间属性，如果没有则添加。
+		if(t == null)
+		{
+			t = new Date();
+			obj.set("test time", t);//添加属性测试时间
+		}
+		
+		if(obj.property.SecondFromTime(t) > 20){  //和当前时间比较，超过20秒返回true
+			zjxt_msg.show("setvalue->"+obj.getName()+" 测试时间超过20秒了");
+			obj.set("test time", new Date());  //刷新测试时间。
+			
+		}
+		obj.Tag = obj.Tag + 1;  //设备tag属性是整形值，初始值为-1，可以在程序中灵活使用。
+		zjxt_msg.show("setvalue->"+obj.getName()+" 新属性取值:"+obj.get("新属性"));
+		zjxt_msg.show("setvalue->"+obj.getName()+" test time:"+obj.get("test time"));
+		zjxt_msg.show("setvalue->"+obj.getName()+" Tag:"+obj.Tag);
+end
+
