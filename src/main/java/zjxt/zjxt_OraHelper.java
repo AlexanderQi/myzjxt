@@ -29,10 +29,11 @@ public class zjxt_OraHelper {
 		return instance;
 	}
 	public void ConnectDB()throws Exception{
-		String url = "jdbc:oracle:thin:@" + cfg_host + ":1521:orcl";
-        DriverManager.registerDriver(new oracle.jdbc.OracleDriver());
-        connection = DriverManager.getConnection(url, username, pw);
-        statement = connection.createStatement();
+		throw new Exception("没有实现oracle DAL");
+//		String url = "jdbc:oracle:thin:@" + cfg_host + ":1521:orcl";
+//        DriverManager.registerDriver(new oracle.jdbc.OracleDriver());
+//        connection = DriverManager.getConnection(url, username, pw);
+//        statement = connection.createStatement();
 	}
 	
 	
