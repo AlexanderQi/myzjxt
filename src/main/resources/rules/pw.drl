@@ -44,6 +44,15 @@ rule "feederLine"
     		return;
     	}
     	
+    	String feederName = feederLine.getName();
+    	String cs = feederLine.property.CanControl(); //0:不参与计算; 1:建议 ; 2:控制;	
+    	zjxt_msg.show("【{}】状态为 {}.",feederName,cs);
+    	if(cs.equals(zjxt_State.cs_bucanyu)) {
+    		zjxt_msg.show(feederName+"退出计算.");
+    		return;
+    	}
+    	
+    	
     	List equipments = feederLine.equipments;
 		zjxt_msg.show("【{}】节点数:{}", feederLine.getName(), equipments.size());
         float volRate; //电压合格率
@@ -54,14 +63,14 @@ rule "feederLine"
         for(int i=0; i<size; i++) {
         	Equipment equi = (Equipment)equipments.get(i);
         	String equiName = equi.getName();
-        	//zjxt_msg.show("节点名称:【{}】", equiName);
+        	zjxt_msg.show("节点名称:【{}】", equiName);
         	
         	String eid = equi.getMrID();
 	    	//zFeederLine line = null;
 	    	zjxt_Property propPer = equi.prop;
 	    	int vlid = equi.vlid; //电压等级ID
 	    	VoltageLevel voltage = equi.voltage;
-	    	//zjxt_msg.show(equi.getName() + " 电压等级:"+voltage.getHighVoltageLimit());
+	    	zjxt_msg.show(equi.getName() + " 电压等级:"+voltage.getHighVoltageLimit());
 	    	boolean bool = false;
 	    	if(!equi.controlState.equals(zjxt_State.cs_bucanyu)) {
 	    		bool = zjxt_CimBuild.filterMeasure(equi);

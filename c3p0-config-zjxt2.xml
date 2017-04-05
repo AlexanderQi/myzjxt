@@ -10,6 +10,6 @@
         <property name="user">root</property>
         <property name="password">root</property>
         <property name="driverClass">com.mysql.jdbc.Driver</property>
-        <property name="jdbcUrl">jdbc:mysql://192.168.1.99/pwtbl?useUnicode=true&amp;characterEncoding=UTF-8</property>
+        <property name="jdbcUrl">jdbc:mysql://192.168.0.190/pwtbl?useUnicode=true&amp;characterEncoding=UTF-8</property>
     </default-config>
 </c3p0-config>

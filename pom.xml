@@ -108,7 +108,7 @@
   		<artifactId>ojdbc5</artifactId>
   		<version>10.2.0.4.0</version>
   		<scope>system</scope>
-  		<systemPath>D:\work2\zjxt2.0_lib\ojdbc5.jar</systemPath>
+  		<systemPath>E:\OracleJdbc\ojdbc5.jar</systemPath>
   	</dependency>
   	<dependency>
   		<groupId>commons-collections</groupId>

@@ -192,10 +192,17 @@ public class Limit {
 		try {
 			conn = zjxt_ConnectionPool.Instance().getConnection();
 			stat = conn.createStatement();
-			String sql = "select t1.* from tblelementlimit t1, tblcommonlistcode t2 where t1.limitkind=t2.id and " +
-					" t2.TITLECODE='"+limitKind+"' and " +
-					"t1.elementid="+elementId+" and curtime() between t1.PERIODBEGIN and t1.PERIODEND";
-//			System.out.println(sql);
+//			String sql = "select t1.* from tblelementlimit t1, tblcommonlistcode t2 where t1.limitkind=t2.id and " +
+//					" t2.TITLECODE='"+limitKind+"' and " +
+//					"t1.elementid="+elementId+" and curtime() between t1.PERIODBEGIN and t1.PERIODEND";
+
+		    String sql = "select t1.* from tblelementlimit t1 where t1.LIMITKIND = '"+
+		    			limitKind+
+		    			"' and t1.elementid='"+
+		    			elementId+
+		    			"' and curtime() between t1.PERIODBEGIN and t1.PERIODEND";
+			
+			
 			rs = stat.executeQuery(sql);
 			if(rs.next()) {
 				lv = new LimitValue();

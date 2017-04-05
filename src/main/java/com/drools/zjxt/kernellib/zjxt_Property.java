@@ -582,7 +582,7 @@ public class zjxt_Property {
 	public String CanControl() {
 		String elementId = Owner.getMrID();
 		try {
-			String name = Owner.getName() + " 可以";
+			//String name = Owner.getName() + " 可以";
 			String str = zjxt_State.GetControlState(elementId);
 
 			if (str.equals(zjxt_State.cs_bucanyu)) {
