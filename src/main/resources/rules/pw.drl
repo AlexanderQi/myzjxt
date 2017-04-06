@@ -39,12 +39,11 @@ rule "feederLine"
        feederLine : zFeederLine()
     then
     	zjxt_msg.show("***************************馈线【{}】Start**************************", feederLine.getName());
+    	String feederName = feederLine.getName();
     	if(!feederLine.isCanControl()) {
-    		zjxt_msg.show("馈线【{}】当前有设备正在动作中...", feederLine.getName());
+    		zjxt_msg.show("馈线【{}】当前有设备正在动作中...", feederName);
     		return;
     	}
-    	
-    	String feederName = feederLine.getName();
     	String cs = feederLine.property.CanControl(); //0:不参与计算; 1:建议 ; 2:控制;	
     	zjxt_msg.show("【{}】状态为 {}.",feederName,cs);
     	if(cs.equals(zjxt_State.cs_bucanyu)) {
@@ -63,19 +62,18 @@ rule "feederLine"
         for(int i=0; i<size; i++) {
         	Equipment equi = (Equipment)equipments.get(i);
         	String equiName = equi.getName();
-        	zjxt_msg.show("节点名称:【{}】", equiName);
-        	
+        	//zjxt_msg.show("节点名称:【{}】", equiName);
         	String eid = equi.getMrID();
 	    	//zFeederLine line = null;
 	    	zjxt_Property propPer = equi.prop;
 	    	int vlid = equi.vlid; //电压等级ID
-	    	VoltageLevel voltage = equi.voltage;
-	    	zjxt_msg.show(equi.getName() + " 电压等级:"+voltage.getHighVoltageLimit());
+	    	//VoltageLevel voltage = equi.voltage;
+	    	//zjxt_msg.show("{} 电压等级:{}", equiName, vlid);
 	    	boolean bool = false;
 	    	if(!equi.controlState.equals(zjxt_State.cs_bucanyu)) {
 	    		bool = zjxt_CimBuild.filterMeasure(equi);
 	    		if(equi.hasDeadData) {
-	    			zjxt_msg.show("节点【{}】含有死数据!", equi.getName());
+	    			zjxt_msg.show("节点【{}】含有死数据!", equiName);
 	    		}
 		    	if(equi.hasDeadData || bool) {
 		    		volMeaErrSize++;
@@ -84,35 +82,42 @@ rule "feederLine"
 	    		volMeaErrSize++;
 	    	}
 	    	
-	    	
         	LimitValue lv = Limit.getLimitInPeriod(eid, "电压"); //取限值对象
-        	
 			if(lv == null) {
-				equi.prop.SetAlarm(equi.getName()+"没有当前时段电压限值!");
+				equi.prop.SetAlarm(equiName+"没有当前时段电压限值!");
 				return;
 			}
 			equi.limit = lv;
 			float u = equi.U;
-			zjxt_msg.show("节点【{}】当前电压：{}V", equi.getName(),  u);
+			zjxt_msg.show("节点【{}】当前电压：{}V, 本时段上限:{}V,下限:{}V,上上限:{}V,下下限:{}V ", equiName,u,lv.up,lv.lo,lv.upup,lv.lolo);
 			if(!equi.hasDeadData && !bool&& !equi.controlState.equals(zjxt_State.cs_bucanyu)) {
 				if(u<=lv.upup && u>=lv.lolo) { //电压
 					qualifiedSize++;
 				}
 			}
-			
-        }
+        }//for
+        
         if(size == volMeaErrSize) {
         	volRate = 0f;
         } else {
         	volRate = (float) qualifiedSize/(size-volMeaErrSize);	
         }
-        zjxt_msg.show("馈线【{}】当前电压合格率:{}%", feederLine.getName(),String.format("%.2f", volRate * 100));
-        List<zNode> timinalList = zNode.getTiminalNodes(feederLine.getMrID());
-    	for(zNode node : timinalList) {
-        	Equipment eq = zjxt_CimBuild.getEquipmentById(((PowerSystemResource)node).getMrID());
-			eq.parentId = node.parentId;
-			checkU(eq, node);
+        zjxt_msg.show("馈线【{}】当前电压合格率:{}%", feederName,String.format("%.2f", volRate * 100));
+        if(volRate >= 0.99){
+        	zjxt_msg.show("电压均正常，计算无功设备功率因数合格率，开始无功优化...");
+        	return;
+        }else{
+        	size = equipments.size();
+        	for(int i=0; i<size; i++) {
+        		Equipment eq = (Equipment)equipments.get(i);
+        		//String equiName = eq.getName();
+        		//String eid = eq.getMrID();
+				
+				checkU(eq,volRate);
+	    	}
     	}
+    	
+    	/*
     	zjxt_msg.show("电压均正常，计算无功设备功率因数合格率，开始无功优化...");
     	//计算无功设备功率因数合格率
     	for(int i=0; i<size; i++) {
@@ -133,7 +138,8 @@ rule "feederLine"
     			}
 				
     		}
-    	}
+    	}*/
+    	/*
     	zjxt_msg.show("无功优化完毕，开始电压优化...");
     	//功率因数合格率为100%,进行电压优化
     	for(int i=0; i<size; i++) {
@@ -158,714 +164,76 @@ rule "feederLine"
     			
     		}
     	}
+    	*/
     	zjxt_msg.show("***************************馈线【{}】End**************************", feederLine.getName());
 end
 
 
 //电压越上限
-function void handleLimitUp(zNode node, Equipment eq) {
-	Equipment parentEq = null;
-	if(!"".equals(eq.parentId.trim()) && !eq.parentId.equals("-1")) {
-		parentEq = zjxt_CimBuild.getEquipmentById(eq.parentId);
-	}
-	
-	if(parentEq == null || parentEq.U<=parentEq.limit.upup) { //当前节点为顶级节点或者上级几点电压正常
-		zjxt_msg.show("节点【{}】为顶级节点", eq.getName());
-		if(!canOfforDown(eq)) {
-			eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,暂无调节手段,电压越上限,请人工调节!");
-			return;
-		} else { //当前节点可控
-			List<zNode> nodes = eq.getChildzNodes();
-			if(nodes.size() == 0) {
-				zjxt_msg.show("节点【{}】没有子节点，动作当前节点", eq.getName());
-				double Umin  = eq.U-eq.limit.upup; //最小需降压
-				double ΔU = caculateUm(eq, false);
-				
+function boolean handleLimitUp(Equipment eq) {
+	if(!canOfforDown(eq)) {
+		eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,无调节手段!");
+		return false;
+	} else { //当前节点可控
+				float Umax = eq.limit.upup-eq.U; 
+				double minU = eq.limit.lolo-eq.U;
+				double ΔU = caculateUm(eq, true); 
 				if(eq instanceof zCompensator) {
+				
 					zCompensator comp = (zCompensator) eq;
-					if(ΔU !=0) { 
-						double targetPF = getTargetPF(eq, eq.Qm);
-						//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
-						//		",判断为电压越上限,可切除一组电容,将调节目标功率因数为"+targetPF+
-						//		";预计调节后电压为:"+round(eq.U-ΔU)+"V,"+
-						//		"功率因数为:"+targetPF+",预计节能:"+round(0.06*eq.Qm+eq.PF*1.5)+"kW;";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						//commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), targetPF);
-						//commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,可切除一组电容", eq.U, eq.PF);
-						//commandContent.setExpect("功率因数为:{},预计节能:{}kW", targetPF, round(0.06*eq.Qm+eq.PF*1.5));
-						//sendYKYT(eq, targetPF, commandContent.toString());
-						commandContent.setAction("调节{}工作模式为电压优先模式,设备将切除一组电容", eq.getName());
-						commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越上限,可切除一组电容", eq.U, eq.Q, eq.PF);
-						commandContent.setExpect("电压为:{},无功功率为:{},功率因数为:{}", round(eq.U-ΔU), round(eq.Q+eq.Qm), targetPF);
-						sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-						return;
-					}
-					
-				} else if(eq instanceof zTransformerFormer || 
-					eq instanceof zVoltageRegulator) {
-					
-					//String info = eq.getName() + "当前电压:"+eq.U+"V,当前档位:"+eq.currentStep+"档,判断为电压越上限,将调节降档;预计调节后电压为:" + 
-					//	caculateU2(eq, false) +"V,档位为:"+(eq.currentStep-1)+"档;";
+					double targetPF = getTargetPF(eq, eq.Qm);
+					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
+					commandContent.setAction("调节{}工作模式为电压优先模式", eq.getName());
+					commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越上限", eq.U, eq.Q, eq.PF);
+					commandContent.setExpect("电压为:{},无功功率为:{},功率因数为:{}", round(eq.U-ΔU), round(eq.Q+eq.Qm), targetPF);
+					sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
+					return true;
+				}else if(eq instanceof zTransformerFormer || eq instanceof zVoltageRegulator) {
+				
 					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
 					commandContent.setAction("{}降档操作", eq.getName());
 					commandContent.setReason("当前电压:{}V,当前档位:{}档,判断为电压越上限", eq.U, eq.currentStep);
 					commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, false), eq.currentStep-1);
 					sendYK(eq, 0, commandContent.toString());
-					return;
-				}  else if(eq instanceof zApf || 
-					eq instanceof zSVG || 
-					eq instanceof zTpunbalance) {
-					if(eq instanceof zApf && eq.isHarmonicsProblem) {
-						eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越上限,总电压谐波含有率：{},总电流谐波含有率:{},谐波指标超标,将优先治理谐波,不进行电压调节!",
-							eq.getName(), eq.U, eq.PF, eq.thdu, eq.thdi);
-						return;
-					}
-					if(eq instanceof zTpunbalance && eq.isHarmonicsProblem) {
-						eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越上限,三相不平衡度：{},优先治理三相不平衡!",
-							eq.getName(), eq.U, eq.PF, eq.sxbphd);
-						return;
-					}
-					double ΔQc = 0;
-					if(Umin>ΔU) {
-						ΔQc = ΔU/0.22*10.5*10.5/eq.X;	
-					} else {
-						ΔQc = Umin/0.22*10.5*10.5/eq.X;	
-					}
-					double pf = getTargetPF(eq, ΔQc);
-					//String info = eq.getName()+"当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越上限,"+getAlarmStr(eq)+",预计减少"+round(ΔQc)+"kVar无功投入,将调节目标功率因数为:" + pf + ";预计调节后电压为:" +round(eq.U-(Umin<ΔU?Umin:ΔU))+ "V,功率因数为:"+pf+";";
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), pf);
-					commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,{},预计减少{}kVar无功投入", eq.U, eq.PF, getAlarmStr(eq), round(ΔQc));
-					commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U-(Umin<ΔU?Umin:ΔU)), pf);
-					sendYT(eq, pf, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-					return;
+					return true;
 				}
-				return;
-			} else {
-				double Umin = eq.U - eq.limit.upup; //当前节点最小需降压
-				double childUmin = 0.0f; //所有子节点电压允许下降 除以对应电压等级正常电压的最小值，以方便对不同电压等级的电压进行比较
-				Equipment minChild = null;
-				boolean isFirst = true;
-				for(zNode n : nodes) {
-					Equipment e = zjxt_CimBuild.getEquipmentById(n.Id);	
-					if(isFirst) {
-						if(e.isMeasureError) {
-							continue;
-						}
-						if(e instanceof zTransformerFormer) {
-							childUmin = (e.U - e.limit.lolo)/220;
-						} else if(e.vlid == 380) { //380V电压等级
-							childUmin = (e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid;
-						} else if(e.vlid == 10000) { //10kV
-							childUmin = (e.U - e.limit.lolo)/e.vlid;
-						}
-						
-						minChild = e;
-						isFirst = false;
-					} else {
-						if(e.isMeasureError) {
-							continue;
-						}
-						if(e instanceof zTransformerFormer) {
-							childUmin = childUmin<(e.U - e.limit.lolo)/220?childUmin:(e.U - e.limit.lolo)/220;
-							minChild = childUmin<(e.U - e.limit.lolo)/220? minChild:e;
-						} else if(e.vlid == 380) {
-							childUmin = childUmin<(e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid? childUmin : (e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid; //取最小值
-							minChild = childUmin<(e.U - e.limit.lolo)*Math.sqrt(3)/e.vlid? minChild : e;
-						} else if(e.vlid == 10000) {
-							childUmin = childUmin<(e.U - e.limit.lolo)/e.vlid? childUmin : (e.U - e.limit.lolo); //取最小值
-							minChild = childUmin<(e.U - e.limit.lolo)/e.vlid? minChild : e;
-						}
-						zjxt_msg.show(eq.getName()+"子节点最小："+childUmin);
-					}
-				}
-				if(childUmin==0) {
-					double ΔU = caculateUm(eq, false);
-					if(eq instanceof zCompensator) { //电容器
-						zCompensator comp = (zCompensator) eq;
-						double targetPF = getTargetPF(eq, eq.Qm);
-						//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
-						//			",判断为电压越上限,可切除一组电容,将调节功率因数为"+targetPF+
-						//			";预计调节后电压为:"+round(eq.U-ΔU)+"V,"+
-						//			"功率因数为:"+targetPF+";";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						//commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), targetPF);
-						//commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,可切除一组电容,将调节功率因数为",eq.U, eq.PF);
-						//commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U-ΔU), targetPF);
-						//sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-						commandContent.setAction("调节{}工作模式为电压优先模式,设备将切除一组电容", eq.getName());
-						commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越上限,可切除一组电容,将调节功率因数为",eq.U, eq.Q, eq.PF);
-						commandContent.setExpect("电压为:{}V,无功功率为:{},功率因数为:{}", round(eq.U-ΔU), round(eq.Q+eq.Qm), targetPF);
-						sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-						return;
-						//comp.prop.SetAlarm(comp.getName()+"当前电压为:"+comp.U+"V,判断为电压越上限,且暂无调节手段,请人工调节!");
-						
-					} else if(eq instanceof zSVG 
-						|| eq instanceof zApf
-						|| eq instanceof zTpunbalance) {
-						if(eq instanceof zApf && eq.isHarmonicsProblem) {
-							eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越上限,总电压谐波含有率：{},总电流谐波含有率:{},谐波指标超标,将优先治理谐波,不进行电压调节!",
-								eq.getName(), eq.U, eq.PF, eq.thdu, eq.thdi);
-							return;
-						}
-						if(eq instanceof zTpunbalance && eq.isHarmonicsProblem) {
-							eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越上限,三相不平衡度：{}，优先治理三相不平衡!",
-								eq.getName(), eq.U, eq.PF, eq.sxbphd);
-							return;
-						}
-						double ΔUm = caculateUm(eq, false); //可降压裕度
-						double targetPF = getTargetPF(eq, eq.Qc); //遥调目标功率因数
-						//String info = eq.getName()+"当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越上限,"+getAlarmStr(eq)+"可减少"+eq.Qc+"kVar无功投入,将调节目标功率因数为"+targetPF+
-						//	";预计调节后电压为:"+(eq.U-ΔUm)+",功率因数为:"+targetPF+";";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), targetPF);
-						commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,{},可减少{}kVar无功投入",eq.U, eq.PF, getAlarmStr(eq), eq.Qc);
-						commandContent.setExpect("电压为:{}V,功率因数为:{}", eq.U-ΔUm, targetPF);
-						sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-						return;
-					} else if(eq instanceof zTransformerFormer || 
-						eq instanceof zVoltageRegulator) {
-						//String info = eq.getName() + "当前电压:"+eq.U+"V,当前档位:"+eq.currentStep+"档,判断为电压越上限,将调节降档;预计调节后电压为:" + 
-						//	caculateU2(eq, false) +"V,档位为:"+(eq.currentStep-1)+"档;";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						commandContent.setAction("{}降档操作", eq.getName());
-						commandContent.setReason("当前电压:{}V,当前档位:{}档,判断为电压越上限", eq.U, eq.currentStep);
-						commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, false), eq.currentStep-1);
-						sendYK(eq, 0, commandContent.toString());
-						return;
-					}
-					
-				}
-				if(Umin/eq.vlid > childUmin) {
-					eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,判断为电压越上限,预计调节后下级节点"+minChild.getName()+"电压越下限,暂无调节手段,请人工调节!");
-					return;
-				} else {
-					double ΔU = caculateUm(eq, false);
-					if(eq instanceof zCompensator) { //电容器
-						zCompensator comp = (zCompensator) eq;
-						if(ΔU != 0 && Umin<=ΔU && ΔU/eq.vlid<=childUmin) {
-							double targetPF = getTargetPF(eq, eq.Qm);
-							//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
-							//			",判断为电压越上限,可切除一组电容,将调节功率因数为"+targetPF+
-							//			";预计调节后电压为:"+round(eq.U-ΔU)+"V,"+
-							//			"功率因数为:"+targetPF+";";
-							zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-							//commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), targetPF);
-							//commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,可切除一组电容",eq.U, eq.PF);
-							//commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U-ΔU), targetPF);
-							//sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-							
-							commandContent.setAction("调节{}工作模式为电压优先模式,设备将切除一组电容", eq.getName());
-							commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越上限,可切除一组电容", eq.U, eq.Q, eq.PF);
-							commandContent.setExpect("电压为:{},无功功率为:{},功率因数为:{}", round(eq.U-ΔU), round(eq.Q+eq.Qm), targetPF);
-							sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-							return;
-						}
-						
-					} else if(eq instanceof zSVG || 
-						eq instanceof zApf	||
-						eq instanceof zTpunbalance) {
-						if(eq instanceof zApf && eq.isHarmonicsProblem) {
-							eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越上限,总电压谐波含有率：{},总电流谐波含有率:{},谐波指标超标,将优先治理谐波,不进行电压调节!",
-								eq.getName(), eq.U, eq.PF, eq.thdu, eq.thdi);
-							return;
-						}
-						if(eq instanceof zTpunbalance && eq.isHarmonicsProblem) {
-							eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越上限,三相不平衡度：{}，优先治理三相不平衡!",
-								eq.getName(), eq.U, eq.PF, eq.sxbphd);
-							return;
-						}
-						double ΔUm = caculateUm(eq, false); //可降压裕度
-						
-						if(ΔUm/eq.vlid<Umin/minChild.vlid) {
-							double targetPF = getTargetPF(eq, eq.Qc); //遥调目标功率因数
-							//String info = eq.getName() + "当前电压:"+eq.U+",功率因数为:"+eq.PF+
-							//	",判断为电压越上限,"+getAlarmStr(eq)+"可减少"+eq.Qc+"kVar无功投入,将调节目标功率因数为"+targetPF+
-							//	";预计调节后电压为:"+(eq.U-ΔUm)+",功率因数为:"+targetPF+";";
-							zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-							commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), targetPF);
-							commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,{},可减少{}kVar无功投入",eq.U, eq.PF, getAlarmStr(eq), eq.Qc);
-							commandContent.setExpect("电压为:{}V,功率因数为:{}", eq.U-ΔUm, targetPF);
-							sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-							return;
-						} else if(ΔUm>childUmin) {
-							double ΔQc = 10.5*childUmin/eq.X;
-							double pf = getTargetPF(minChild, ΔQc);
-							//String info = eq.getName()+"当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
-							//	",判断为电压越上限，"+getAlarmStr(eq)+"可减少"+ΔQc+"kVar无功投入,将调节"+minChild.getName()+"目标功率因数为" + pf+
-							//	";预计调节后电压为:"+round(eq.U-childUmin)+",功率因数为:"+pf+";";
-							zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-							commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), pf);
-							commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,{},可减少{}kVar无功投入",eq.U, eq.PF, getAlarmStr(eq), ΔQc);
-							commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U-childUmin), pf);
-							sendYT(minChild, pf, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-							return;
-						} else if(Umin<=ΔUm && ΔUm/eq.vlid<=childUmin/minChild.vlid) {
-							double targetPF = getTargetPF(eq, eq.Qc); //遥调目标功率因数
-							//String info = eq.getName() + "当前电压为："+eq.U+",功率因数为:"+eq.PF+
-							//	",判断为电压越上限,"+getAlarmStr(eq)+"可减少"+eq.Qc+"kVar无功投入,将调节目标功率因数为"+targetPF+
-							//	";预计调节后电压为:"+(eq.U-Umin)+",功率因数为:"+targetPF+";";
-							zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-							commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), targetPF);
-							commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越上限,{},可减少{}kVar无功投入",eq.U, eq.PF, getAlarmStr(eq), eq.Qc);
-							commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U-Umin), targetPF);
-							sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-							return;
-						}
-					} else if(eq instanceof zTransformerFormer || 
-						eq instanceof zVoltageRegulator) {
-						//String info = eq.getName() + "当前电压:"+eq.U+"V,当前档位:"+eq.currentStep+"档,判断为电压越上限,将调节降档;预计调节后电压为:" + 
-						//	caculateU2(eq, false) +"V,档位为:"+(eq.currentStep-1)+"档;";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						commandContent.setAction("{}降档操作", eq.getName());
-						commandContent.setReason("当前电压:{}V,当前档位:{}档,判断为电压越上限", eq.U, eq.currentStep);
-						commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, false), eq.currentStep-1);
-						sendYK(eq, 0, commandContent.toString());
-						zjxt_msg.show("命令发送控制成功,退出{}线路检查!", eq.line.getName());
-						throw new Exception("退出循环");
-						//return;
-					}
-				}
-			}
-		}
-		
-	} else { //当前节点不是顶级节点，则继续向上查找
-		zjxt_msg.show("节点【{}】不是顶级节点, 继续向上搜索...", eq.getName());
-		//zjxt_msg.show(eq.parentId);
-		Equipment parentEquipment = zjxt_CimBuild.getEquipmentById(eq.parentId);
-		zNode parentNode = node.getParentNode();
-		if(parentEquipment.U>parentEquipment.limit.upup) { //上级节点电压越上限
-			handleLimitUp(parentNode, parentEquipment);
-		} else {
-			if(!canOfforDown(eq)) {
-				checkU(parentEquipment, parentNode);
-			}
-		}
-	}
-	
+				return true;
+	}  
 }
 
 /**
 * 电压越下限
 */
-function void handleLimitLo(zNode node, Equipment eq) {
-	Equipment parent = zjxt_CimBuild.getEquipmentById(eq.parentId); //当前节点父节点
-	
-	if(eq.U < eq.limit.lolo && parent != null &&
-		parent.U<parent.limit.lolo) { 
-		zjxt_msg.show("节点【{}】当前电压：{}V, 功率因数：{},电压越下限,且父节点【{}】电压越下限", eq.getName(), eq.U, eq.PF, parent.getName());
-		handleLimitLo(node.getParentNode(), parent);
-	} else if(eq.U < eq.limit.lolo && parent == null) {
-		zjxt_msg.show("节点【{}】当前电压：{}V, 功率因数：{},电压越下限,且未搜索到上级节点", eq.getName(), eq.U, eq.PF);
-		if(canOnorUp(eq)) {
-			if(eq instanceof zCompensator) { //父节点是电容器
+function boolean handleLimitLo(Equipment eq) {
+		if(!canOfforDown(eq)) {
+			eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,无调节手段!");
+			return false;
+		} else {
+			if(eq instanceof zCompensator) { 
 				float Umax = eq.limit.upup-eq.U; 
 				double ΔU = caculateUm(eq, true); 
 				if(ΔU != 0 && ΔU<=Umax && eq.Q>=eq.capacity/2*0.9) {
 					double targetPF = getTargetPF(eq, eq.Qm);
-					//String info = eq.getName()+ "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,预计投入一组电容,将调节目标功率因数为"+targetPF+
-					//			";预计调节后电压为:"+round(eq.U+ΔU)+
-					//			"V,功率因数为"+targetPF+";预计节能:"+round(0.06*eq.Qm+eq.PF*1.5)+"kW;";
 					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					//commandContent.setAction("调节{}目标功率因数为:{}", eq.getName(), targetPF);
-					//commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越下限,可投入一组电容",eq.U, eq.PF);
-					//commandContent.setExpect("电压为:{}V,功率因数为:{},节能:{}KW", round(eq.U+ΔU), targetPF, round(0.06*eq.Qm+eq.PF*1.5));
-					//sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
 					commandContent.setAction("调节{}工作模式为电压优先模式,设备将投入一组电容", eq.getName());
 					commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越下限,可投入一组电容", eq.U, eq.Q, eq.PF);
 					commandContent.setExpect("电压为:{},无功功率为:{},功率因数为:{}", round(eq.U+ΔU), 
 						round(eq.Q-eq.Qm), targetPF);
 					sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-					return;
+					return true;
 				}
-				eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+",判断为电压越下限,暂无有效调节手段,请人工调节!");
-				return;
+				eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+",判断为电压越下限,无有效调节手段!");
+				return false;
 			} else if(eq instanceof zVoltageRegulator ||
 				eq instanceof zTransformerFormer) { //调压器、调压变
-				//String info = eq.getName()+"当前电压:"+eq.U+
-				//	"V,档位:"+eq.currentStep+"档,判断为电压越下限,将执行升档操作;预计调节后电压为:"+
-				//	caculateU2(eq, true)+
-				//	"V,档位:"+(eq.currentStep+1)+"档,节能量:"+0+"kW;";
 				zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
 				commandContent.setAction("{}升档操作", eq.getName());
 				commandContent.setReason("当前电压:{}V,档位:{}档,判断为电压越下限",eq.U, eq.currentStep);
 				commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, true), eq.currentStep+1);
 				sendYK(eq, 1, commandContent.toString());
-				return;
-			} else if(eq instanceof zSVG ||
-				eq instanceof zApf ||
-				eq instanceof zTpunbalance) { //SVG、APF、三相不平衡
-				if(eq instanceof zApf && eq.isHarmonicsProblem) {
-					eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越下限,总电压谐波含有率：{},总电流谐波含有率:{},谐波指标超标,将优先治理谐波,不进行电压调节!",
-						eq.getName(), eq.U, eq.PF, eq.thdu, eq.thdi);
-					return;
-				}
-				if(eq instanceof zTpunbalance && eq.isHarmonicsProblem) {
-					eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越下限,三相不平衡度：{}，优先治理三相不平衡!",
-						eq.getName(), eq.U, eq.PF, eq.sxbphd);
-					return;
-				}
-				double ΔUm = caculateUm(eq, true); 
-				double minU = eq.limit.lolo-eq.U;
-				//zjxt_msg.show("Qm:"+eq.Qm);
-				if(ΔUm < minU) {
-					double targetPF = getTargetPF(eq, eq.Qm);
-					//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,"+getAlarmStr(eq)+"预计投入无功"+round(eq.Qm)+"kVar,将调节目标功率因数为:" + targetPF+
-					//	",预计调节后电压为:"+round(eq.U+ΔUm)+
-					//	"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
-					//	"kW;";
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-					commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越下限,{},预计投入无功{}kVar",eq.U, eq.PF, getAlarmStr(eq), round(eq.Qm));
-					commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U+ΔUm), targetPF);
-					sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-					return;
-				} else {
-					double targetPF = getTargetPF(eq, minU/0.22*10.5*10.5/eq.X);
-					//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,"+getAlarmStr(eq)+"预计投入无功"+round(minU/0.22*10.5*10.5/eq.X)+"kVar,将调节目标功率因数为:" + targetPF+
-					//	",预计调节后电压:"+(eq.U+minU)+
-					//	"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
-					//	"kW;";
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-					commandContent.setReason("当前电压:{}V,功率因数为:{},判断为电压越下限,{},预计投入无功{}kVar",eq.U, eq.PF, getAlarmStr(eq), round(minU/0.22*10.5*10.5/eq.X));
-					commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U+minU), targetPF);
-					sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-					return;
-				}
-		}
-	} else {
-		eq.prop.SetAlarm(eq.getName() + "当前电压:"+eq.U+"V,判断为电压越下限,当前设备不可控制电压提升,且无上级设备,请人工干预!");
-		return;
-	}
-} else if(eq.U < eq.limit.lolo && parent !=null &&
-	parent.U>=parent.limit.lolo) {
-	zjxt_msg.show("节点【{}】当前电压：{}V,判断为电压越下限,父节点【{}】电压正常",eq.getName(), eq.U, parent.getName());
-	if(canOnorUp(parent)) {
-		//zjxt_msg.show("父节点:" + parent.getName() + "电压可控制提升");
-		List<zNode> nodes = parent.getChildzNodes();
-		int count = 0;
-		for(zNode n :nodes) {
-			Equipment e = zjxt_CimBuild.getEquipmentById(n.Id);	
-			if(e.limit.lolo<=e.U && e.U<=e.limit.upup) {
-				count++;
-			}
-		}
-		float rate = (float)count/nodes.size();
-		
-		if(rate<0.4f) { //电压合格率小于40%
-			float Umax = parent.limit.upup-parent.U; 
-			double ΔU = caculateUm(parent, true);
-			if(parent instanceof zCompensator) { //父节点是电容器
-				if(ΔU!=0 && ΔU<=Umax && eq.Q>=eq.capacity/2*0.9) {
-					double targetPF = getTargetPF(parent, parent.Qm);
-					//String info = eq.getName() + "当前电压:"+eq.U + "V,判断为电压越下限,同级其他设备电压大部分不合格,将调节上级设备"+parent.getName()+
-					//			"目标功率因数为"+targetPF+";预计调节后"+parent.getName()+"电压:"+round(parent.U+ΔU)+
-					//			"V,功率因数为:"+targetPF+";预计节能:"+round(0.06*parent.Qm+parent.PF*1.5)+"kW;";
-					double targetU = 0; 
-					if(eq instanceof zTransformerFormer) { //调压变特殊处理
-						targetU = eq.U + ΔU/parent.vlid*220;
-					} else if(eq.vlid == 380) {
-						targetU = eq.U + ΔU/parent.vlid*eq.vlid/Math.sqrt(3);
-					} else if(eq.vlid == 10000) {
-						targetU = eq.U + ΔU;
-					}
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(parent.controlState);
-					//commandContent.setAction("调节{}目标功率因数为{}", parent.getName(), targetPF);
-					//commandContent.setReason("{}当前电压:{}V,功率因数为:{},判断为电压越下限,同级其他设备电压大部分不合格,将通过上级设备{}调节",eq.getName(), eq.U, eq.PF, parent.getName());
-					//commandContent.setExpect("{}电压为:{}V,功率因数为:{},节能:{}KW", eq.getName(), round(targetU), targetPF, round(0.06*parent.Qm+parent.PF*1.5));
-					//sendYT(parent, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-					
-					commandContent.setAction("调节{}工作模式为电压优先模式,设备将投入一组电容", parent.getName());
-					commandContent.setReason("{}当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越下限,同级其他设备电压大部分不合格,将通过上级设备{}调节,可投入一组电容", 
-						eq.getName(), eq.U, eq.Q, eq.PF, parent.getName());
-					commandContent.setExpect("{}电压为:{},{}无功功率为:{}、功率因数为:{}", eq.getName(), round(eq.U+ΔU), parent.getName(), 
-						round(parent.Q-parent.Qm), targetPF);
-					sendYT(parent, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-					return;
-				} else if(canOnorUp(eq)) {
-					if(eq instanceof zVoltageRegulator) {
-					
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						commandContent.setAction("{}执行升档操作", eq.getName());
-						commandContent.setReason("当前电压:{}V,档位为{}档,下级设备电压大部分不合格,将由上级执行升档操作",eq.U, eq.currentStep);
-						commandContent.setExpect("电压为:{}V,档位为{}档", round(eq.U+ΔU), eq.currentStep+1);
-						sendYK(eq, 1, commandContent.toString());
-						return;
-					} else if(eq instanceof zCompensator) {
-						double ΔU2 = caculateUm(eq, true); 
-						if(ΔU2!=0 && ΔU2<=Umax && eq.Q>=eq.capacity/2*0.9) {
-							double targetPF2 = getTargetPF(eq, eq.Qm);
-							zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						
-							commandContent.setAction("调节{}工作模式为电压优先模式,设备将投入一组电容", eq.getName());
-							commandContent.setReason("{}当前电压:{}V,无功功率为:{}kVar,功率因数为:{},判断为电压越下限,可投入一组电容", 
-								eq.getName(), eq.U, eq.Q, eq.PF);
-							commandContent.setExpect("{}电压为:{}V,无功功率为:{}kVar、功率因数为:{}", eq.getName(), round(eq.U+ΔU2),  
-								round(eq.Q-eq.Qm), targetPF2);
-							sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-							return;
-						}
-						
-					}
-					
-				}
-				
-			} else if(parent instanceof zVoltageRegulator) { //线路调压器
-				if(ΔU!=0 && ΔU<=Umax) {
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(parent.controlState);
-					commandContent.setAction("{}执行升档操作", parent.getName());
-					commandContent.setReason("当前电压:{}V,档位为{}档,下级设备电压大部分不合格,将由上级执行升档操作",parent.U, parent.currentStep);
-					commandContent.setExpect("电压为:{}V,档位为{}档", round(parent.U+ΔU), parent.currentStep+1);
-					sendYK(parent, 1, commandContent.toString());
-					return;
-				} else {
-					eq.prop.SetAlarm("当前电压为{}V,判断为越下限,且无调节手段,请人工干预!", eq.U);
-				}
-			}  else if(parent instanceof zTransformerFormer) {
-				if(ΔU!=0 && ΔU<=Umax) {
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(parent.controlState);
-					commandContent.setAction("{}执行升档操作", parent.getName());
-					commandContent.setReason("当前电压:{}V,档位为{}档,下级设备电压大部分不合格,将由上级执行升档操作",parent.U, parent.currentStep);
-					commandContent.setExpect("电压为:{}V,档位为{}档", round(parent.U+ΔU), parent.currentStep+1);
-					sendYK(parent, 1, commandContent.toString());
-					return;
-				} else {
-					eq.prop.SetAlarm("当前电压为{}V,判断为越下限,且无调节手段,请人工干预!", eq.U);
-				}
-			}
-		} else { //合格率大于40%
-			if(canOnorUp(eq)) {
-				if(eq instanceof zCompensator) { //电容器
-					float Umax = eq.limit.upup-eq.U; 
-					double ΔU = caculateUm(eq, true); 
-					
-					if(ΔU!=0 && ΔU<=Umax && eq.Q>=eq.capacity/2*0.9) {
-						double targetPF = getTargetPF(eq, eq.Qm);
-						//String info = eq.getName()+ "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
-						//			",判断为电压越下限,同级其他设备电压大部分合格,由自身调节,将调节目标功率因数为"+targetPF+";预计调节后电压:"+round(eq.U+ΔU)+
-						//			"V,功率因数为:"+getTargetPF(eq, eq.Qm)+";预计节能:"+round(0.06*eq.Qm+eq.PF*1.5)+"kW;";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						//commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-						//commandContent.setReason("{}当前电压:{}V,功率因数为:{},判断为电压越下限,同级其他设备电压大部分合格,由自身调节",eq.getName(), eq.U, eq.PF);
-						//commandContent.setExpect("电压为:{}V,功率因数为:{},节能:{}KW", round(eq.U+ΔU), targetPF, round(0.06*eq.Qm+eq.PF*1.5));
-						
-						//sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-						
-						commandContent.setAction("调节{}工作模式为电压优先模式,设备将投入一组电容", eq.getName());
-						commandContent.setReason("当前电压:{}V,无功功率为:{}kVar,功率因数为:{},判断为电压越下限,可投入一组电容", eq.U, eq.Q, eq.PF);
-						commandContent.setExpect("电压为:{}V,无功功率为:{}kVar,功率因数为:{}", round(eq.U+ΔU), 
-							round(eq.Q-eq.Qm), targetPF);
-						sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-						return;
-					}
-				} else if(eq instanceof zVoltageRegulator ||
-					eq instanceof zTransformerFormer) { //调压器、调压变
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					commandContent.setAction("{}执行升档操作", eq.getName());
-					commandContent.setReason("{}当前电压:{}V,档位为:{}档,判断为电压越下限,同级其他设备电压大部分合格,将由自身执行升档操作",eq.getName(), eq.U, eq.currentStep);
-					commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, true), eq.currentStep+1);
-					sendYK(eq, 1, commandContent.toString());
-					return;
-				} else if(eq instanceof zSVG ||
-					eq instanceof zApf ||
-					eq instanceof zTpunbalance) { //SVG、APF、三相不平衡
-					if(eq instanceof zApf && eq.isHarmonicsProblem) {
-						eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越下限,总电压谐波含油率：{},总电流谐波含有率:{},谐波指标超标,将优先治理谐波,不进行电压调节!",
-							eq.getName(), eq.U, eq.PF, eq.thdu, eq.thdi);
-						return;
-					}
-					if(eq instanceof zTpunbalance && eq.isHarmonicsProblem) {
-						eq.prop.SetAlarm("{}当前电压:{}V,功率因数为:{},判断为电压越下限,三相不平衡度：{}，优先治理三相不平衡!",
-							eq.getName(), eq.U, eq.PF, eq.sxbphd);
-						return;
-					}
-					double ΔUm = caculateUm(eq, true); 
-					double minU = eq.limit.lolo-eq.U;
-					if(ΔUm < minU) {
-						double targetPF = getTargetPF(eq, eq.Qm);
-						//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,"+getAlarmStr(eq)+",同级其他设备电压大部分合格,预计投入无功"+eq.Qm+"kVar,将调节目标功率因数为:" + targetPF+
-						//	",预计调节后电压:"+round(eq.U+ΔUm)+
-						//	"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
-						//	"kW;";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-						commandContent.setReason("{}当前电压:{}V,功率因数为:{},判断为电压越下限,同级其他设备电压大部分合格,由自身调节,预计投入无功{}kVar",eq.getName(), eq.U, eq.PF, eq.Qm);
-						commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U+ΔUm), targetPF);
-						sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-						return;
-					} else {
-						double targetPF = getTargetPF(eq, minU*10.5/eq.X);
-						//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,"+getAlarmStr(eq)+",同级其他设备电压大部分合格,预计投入无功"+minU*10.5/eq.X+"kVar,将调节目标功率因数为:" + targetPF+
-						//	",预计调节后电压:"+(eq.U+minU)+
-						//	"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
-						//	"kW;";
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-						commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-						commandContent.setReason("{}当前电压:{}V,功率因数为:{},判断为电压越下限,同级其他设备电压大部分合格,由自身调节,预计投入无功{}kVar",eq.getName(), eq.U, eq.PF, minU*10.5/eq.X);
-						commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U+minU), targetPF);
-						sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-						return;
-					}
-				}
-			} else {
-				float Umax = parent.limit.upup-parent.U; 
-				double ΔU = caculateUm(parent, true);
-				
-				if(parent instanceof zCompensator) { //父节点是电容器
-					if(ΔU!=0 && ΔU<=Umax && eq.Q>=eq.capacity/2*0.9) {
-						double targetPF = getTargetPF(parent, parent.Qm);
-						//String info = eq.getName() + "当前电压:"+eq.U + "V,判断为电压越下限,同级其他设备电压大部分不合格,将调节上级设备"+parent.getName()+
-						//			"目标功率因数为"+targetPF+";预计调节后"+parent.getName()+"电压:"+round(parent.U+ΔU)+
-						//			"V,功率因数为:"+targetPF+";预计节能:"+round(0.06*parent.Qm+parent.PF*1.5)+"kW;";
-						double targetU = 0; 
-						if(eq instanceof zTransformerFormer) { //调压变特殊处理
-							targetU = eq.U + ΔU/parent.vlid*220;
-						} else if(eq.vlid == 380) {
-							targetU = eq.U + ΔU/parent.vlid*eq.vlid/Math.sqrt(3);
-						} else if(eq.vlid == 10000) {
-							targetU = eq.U + ΔU;
-						}
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(parent.controlState);
-						
-						commandContent.setAction("调节{}工作模式为电压优先模式,设备将投入一组电容", parent.getName());
-						commandContent.setReason("{}当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越下限,同级其他设备电压大部分不合格,将通过上级设备{}调节,可投入一组电容", 
-							eq.getName(), eq.U, eq.Q, eq.PF, parent.getName());
-						commandContent.setExpect("{}电压为:{},{}无功功率为:{}、功率因数为:{}", eq.getName(), round(eq.U+ΔU), parent.getName(), 
-							round(parent.Q-parent.Qm), targetPF);
-						sendYT(parent, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-						return;
-					} else if(canOnorUp(eq)) {
-						if(eq instanceof zVoltageRegulator) {
-						
-							zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-							commandContent.setAction("{}执行升档操作", eq.getName());
-							commandContent.setReason("当前电压:{}V,档位为{}档,下级设备电压大部分不合格,将由上级执行升档操作",eq.U, eq.currentStep);
-							commandContent.setExpect("电压为:{}V,档位为{}档", round(eq.U+ΔU), eq.currentStep+1);
-							sendYK(eq, 1, commandContent.toString());
-							return;
-						} else if(eq instanceof zCompensator) {
-							double ΔU2 = caculateUm(eq, true); 
-							if(ΔU2!=0 && ΔU2<=Umax && eq.Q>=eq.capacity/2*0.9) {
-								double targetPF2 = getTargetPF(eq, eq.Qm);
-								zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-							
-								commandContent.setAction("调节{}工作模式为电压优先模式,设备将投入一组电容", eq.getName());
-								commandContent.setReason("{}当前电压:{}V,无功功率为:{}kVar,功率因数为:{},判断为电压越下限,可投入一组电容", 
-									eq.getName(), eq.U, eq.Q, eq.PF);
-								commandContent.setExpect("{}电压为:{}V,无功功率为:{}kVar、功率因数为:{}", eq.getName(), round(eq.U+ΔU2),  
-									round(eq.Q-eq.Qm), targetPF2);
-								sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-								return;
-							}
-						}
-					}
-					
-				} else if(parent instanceof zVoltageRegulator) { //线路调压器
-					if(ΔU!=0 && ΔU<=Umax) {
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(parent.controlState);
-						commandContent.setAction("{}执行升档操作", parent.getName());
-						commandContent.setReason("{}当前电压:{}V,判断为电压越下限,且不可控制提升,将由上级{}执行升档操作,上级当前档位为{}档,",eq.getName(),eq.U, parent.getName(), parent.currentStep);
-						commandContent.setExpect("{}电压为:{}V,{}档位为{}档", eq.getName(), round(eq.U+(ΔU/10000*220)), parent.getName(), parent.currentStep+1);
-						sendYK(parent, 1, commandContent.toString());
-						return;
-					} else {
-						eq.prop.SetAlarm("当前电压为{}V,判断为越下限,且无调节手段,请人工干预!", eq.U);
-					}
-				} else if(parent instanceof zTransformerFormer) { //线路调压器
-					if(ΔU!=0 && ΔU<=Umax) {
-						zjxt_CommandContent commandContent = new zjxt_CommandContent(parent.controlState);
-						commandContent.setAction("{}执行升档操作", parent.getName());
-						commandContent.setReason("{}当前电压:{}V,判断为电压越下限,且不可控制提升,将由上级{}执行升档操作,上级当前档位为{}档,",eq.getName(),eq.U, parent.getName(), parent.currentStep);
-						commandContent.setExpect("{}电压为:{}V,{}档位为{}档", eq.getName(), round(eq.U+(ΔU/10000*220)), parent.getName(), parent.currentStep+1);
-						sendYK(parent, 1, commandContent.toString());
-						return;
-					} else {
-						eq.prop.SetAlarm("当前电压为{}V,判断为越下限,且无调节手段,请人工干预!", eq.U);
-					}
-				}
-			}
-		}
-			
-	} else {
-		zjxt_msg.show("节点【{}】父节点【{}】电压不可控制提升, 控制本节点", eq.getName(), parent.getName());
-		if(canOnorUp(eq)) {
-			//zjxt_msg.show("本级控制");
-			if(eq instanceof zCompensator) { //电容器
-				float Umax = eq.limit.upup-parent.U; 
-				double ΔU = caculateUm(eq, true); 
-				
-				if(ΔU!=0 && ΔU<=Umax) {
-					double targetPF = getTargetPF(eq, eq.Qm);
-					//String info = eq.getName()+ "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+
-					//			",判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,有自身调节,预计投入一组电容,将调节目标功率因数为"+targetPF+
-					//			";预计调节后电压:"+round(eq.U+ΔU)+
-					//			"V,功率因数为:"+targetPF+"预计节能:"+round(0.06*eq.Qm)+"kW;";
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					//commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-					//commandContent.setReason("{}当前电压:{}V,功率因数为:{},判断为电压越下限,且上级设备{}不可控制电压提升,由自身调节,可投入一组电容",eq.getName(), eq.U, eq.PF, parent.getName());
-					//commandContent.setExpect("电压为:{}V,功率因数为:{},节能:{}KW", round(eq.U+ΔU), targetPF, round(0.06*eq.Qm));
-					//sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-					
-					commandContent.setAction("调节{}工作模式为电压优先模式,设备将投入一组电容", eq.getName());
-					commandContent.setReason("当前电压为:{}V,无功功率为:{}kVar,功率因数为:{},判断为电压越下限,且上级设备{}不可控制电压提升,由自身调节,可投入一组电容", eq.U, eq.Q, eq.PF, parent.getName());
-					commandContent.setExpect("电压为:{}V,无功功率为:{}kVar,功率因数为:{}", round(eq.U+ΔU), 
-						round(eq.Q-eq.Qm), targetPF);
-					sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-					return;
-				} else {
-					eq.prop.SetAlarm("当前电压为:{}V,判断为电压越下限,投入一组电容会导致电压越上限,补偿容量配置不合理，电压灵敏度过高，请人工处理!", eq.U);
-				}
-				
-			} else if(eq instanceof zVoltageRegulator ||
-				eq instanceof zTransformerFormer) { //调压器、调压变
-				//zjxt_msg.show(eq.getName()+eq.stepvoltageincrement);
-				//String info = eq.getName()+"当前电压为:"+eq.U+"V,档位:"+eq.currentStep+"档,判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,由自身调节,将执行升档操作;预计调节后电压:"+
-				//	caculateU2(eq, true)+
-				//	"V,档位:"+(eq.currentStep+1)+"档;预计节能量:"+0+"kW;";
-				zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-				commandContent.setAction("{}执行升档操作", eq.getName());
-				commandContent.setReason("{}当前电压:{}V,档位为:{}档,判断为电压越下限,且上级设备{}不可控制电压提升,由自身升档操作",eq.getName(), eq.U, eq.currentStep, parent.getName());
-				commandContent.setExpect("电压为:{}V,档位为:{}", caculateU2(eq, true), eq.currentStep+1);
-				sendYK(eq, 1, commandContent.toString());
-				return;
-			} else if(eq instanceof zSVG ||
-				eq instanceof zApf ||
-				eq instanceof zTpunbalance) { //SVG、APF、三相不平衡
-				double ΔUm = caculateUm(eq, true); 
-				double minU = eq.limit.lolo-eq.U;
-				if(ΔUm < minU) {
-					double targetPF = getTargetPF(eq, eq.Qm);
-					//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,由自身调节,预计投入无功"+eq.Qm+"kVar,将调节目标功率因数为:" + targetPF+
-					//	",预计调节后电压:"+round(eq.U+ΔUm)+
-					//	"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
-					//	"kW;";
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-					commandContent.setReason("{}当前电压:{}V,功率因数为:{},判断为电压越下限,且上级设备{}不可控制电压提升,由自身调节,预计投入无功{}kVar",eq.getName(), eq.U, eq.PF, parent.getName(), eq.Qm);
-					commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U+ΔUm), targetPF);
-					sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-					return;
-				} else {
-					double targetPF = getTargetPF(eq, minU*10.5/eq.X);
-					//String info = eq.getName() + "当前电压:"+eq.U+"V,功率因数为:"+eq.PF+",判断为电压越下限,且上级设备"+parent.getName()+"不可控制电压提升,由自身调节,预计投入无功"+minU*10.5/eq.X+"kVar,将调节目标功率因数为:" + targetPF+
-					//	",预计调节后电压:"+round(eq.U+minU)+
-					//	"V,功率因数为:"+targetPF+";预计节能:"+round((Math.sqrt(1-Math.pow(eq.PF, 2))/eq.PF-Math.sqrt(1-Math.pow(targetPF, 2))/targetPF)*eq.P*0.09)+
-					//	"kW;";
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					commandContent.setAction("调节{}目标功率因数为{}", eq.getName(), targetPF);
-					commandContent.setReason("{}当前电压:{}V,功率因数为:{},判断为电压越下限,且上级设备{}不可控制电压提升,由自身调节,预计投入无功{}kVar",eq.getName(), eq.U, eq.PF, parent.getName(), minU*10.5/eq.X);
-					commandContent.setExpect("电压为:{}V,功率因数为:{}", round(eq.U+minU), targetPF);
-					sendYT(eq, targetPF, commandContent.toString(), zjxt_YTKind.TARGET_PF);
-					return;
-				}
-			
-			}
-		} else {
-			eq.prop.SetAlarm(eq.getName() + "当前电压:"+eq.U+"V,判断为电压越下限,且本级及上级设备"+parent.getName()+"不可控制升压!");
-			return;
-		}
-		}
+				return true;
+			} 
+		return true;
 	}
 }
 
@@ -1025,12 +393,13 @@ function double getTargetPF(Equipment e, double ΔQc) {
  **/
 function boolean canOfforDown(Equipment e) {
 	//String cs = e.prop.CanControl();
-	boolean canControl = e.line.isCanControl() && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && !e.prop.IsProtected() && (e.Qc>0 || e.currentStep>e.lowStep);
+	boolean canControl = e.line.isCanControl() && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && !e.prop.IsProtected() && (e.currentStep>e.lowStep);
+	/*
 	if(e instanceof zSVG ||
 		e instanceof zApf ||
 		e instanceof zTpunbalance) {
 		canControl = e.line.isCanControl() && e.isMeasureError == false && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && (e.Qc>e.minratedCapacity || e.currentStep>e.lowStep);
-	}
+	}*/
 	//zjxt_msg.show("控制状态:" + canControl);
 	return canControl;
 }
@@ -1040,11 +409,12 @@ function boolean canOfforDown(Equipment e) {
 **/
 function boolean canOnorUp(Equipment e) {
 	//String cs = e.prop.CanControl();
-	boolean canControl = e.line.isCanControl();
+	/*boolean canControl = e.line.isCanControl();
 	zjxt_msg.show("控制状态" + canControl);
 	boolean isLock = e.prop.IsLocked();
 	zjxt_msg.show("闭锁" + isLock);
-	return e.line.isCanControl() && !e.isMeasureError && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && (e.Qm>0 || e.currentStep<e.highStep);
+	*/
+	return e.line.isCanControl() && !e.isMeasureError && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && (e.currentStep<e.highStep);
 }
 
 function String round(double value) {
@@ -1190,40 +560,42 @@ function void dealReactive(zNode node) {
 }
 
 
-function void checkU(Equipment e, zNode node) {
-	if(e instanceof zApf) {
-		zApf apf = (zApf) e;
-		//float thdu = apf.property.getyc("THDUYCID");
-		//float thdi = apf.property.getyc("THDIYCID");
-		if(e.thdu>=5f || e.thdi>=15f) { //电压总谐波含有率>=15% 或 电流总谐波含有率>=15%
-			e.isHarmonicsProblem = true;
-		} else {
-			e.isHarmonicsProblem = false;
-		}
-	} else if(e instanceof zTpunbalance) {
-		zTpunbalance balance = (zTpunbalance) e;
-		//float sxbphd = balance.property.getyc("SXBPHDYCID");
-		if(e.sxbphd>=15f) { //三相不平衡度>=15%
-			e.isHarmonicsProblem = true;
-		} else {
-			e.isHarmonicsProblem = false;
-		}
-	}
-	if(!e.hasDeadData && !e.controlState.equals(zjxt_State.cs_bucanyu) && e.isMeasureError == false && e.U > e.limit.upup) { //电压越上限
-		zjxt_msg.show("节点【{}】当前电压越上限, U：{}V, 上限：{}V", e.getName(), e.U, e.limit.upup);
-		handleLimitUp(node, e); 
-	} else if(!e.hasDeadData && !e.controlState.equals(zjxt_State.cs_bucanyu) && e.isMeasureError == false && e.U < e.limit.lolo) { //电压越下限
-		zjxt_msg.show("节点【{}】当前电压越下限, U：{}V, 下限：{}V", e.getName(), e.U, e.limit.lolo);
-		handleLimitLo(node, e);
-	} else { //电压正常,往上搜索
-		zjxt_msg.show("节点【{}】不满足越限处理条件(\"参与计算\", \"量测正常\", \"电压越限\"),三者都要满足, \r\nU：{}V, 继续查找上级节点...", e.getName(), e.U);
-		Equipment parent = zjxt_CimBuild.getEquipmentById(e.parentId); //当前节点父节点
-		zNode parentNode = node.getParentNode();
-		if(parent != null && parentNode != null) {
-			zjxt_msg.show("节点【{}】搜索到上级节点【{}】,开始检查上级节点...", e.getName(), parent.getName());
-			checkU(parent, parentNode);
-		} else {
-			zjxt_msg.show("节点【{}】未搜索到上级节点...", e.getName());
+function void checkU(Equipment e, float volRate) {
+	PowerSystemResource parent = zjxt_CimBuild.GetById(e.parentId);
+	/*
+	if(parent != null){
+		zjxt_msg.show("节点【{}】 上级节点:【{}】",eq.getName(),parent.getName());
+	}else{
+		zjxt_msg.show("节点【{}】 没有上级节点",eq.getName());
+	}*/
+				
+	if(e.U > e.limit.upup) { //电压越上限
+		zjxt_msg.show("节点【{}】当前电压越考核上限, U：{}V, 考核上限：{}V", e.getName(), e.U, e.limit.upup);
+		boolean ret =  handleLimitUp(e);  //本级处理
+		if(!ret) //本级处理不了,找上级处理
+		{
+			if(parent == null) return; //没上级就没办法了
+			if(parent instanceof zFeederLine) return; //上级是纯管理单位也没办法了
+			if(volRate > 0.8){
+				String sv = String.format("%.2f", volRate * 100);
+				zjxt_msg.show("上级节点:【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
+			 	return;  //本馈线电压合格率大于80%,不会动上级.
+			}
+			 handleLimitUp((Equipment)parent);  //找上级处理
+		} 
+	} else if(e.U < e.limit.lolo) { //电压越下限
+		zjxt_msg.show("节点【{}】当前电压越考核下限, U：{}V, 考核下限：{}V", e.getName(), e.U, e.limit.lolo);
+		boolean ret = handleLimitLo(e);
+		if(!ret) 
+		{
+			if(parent == null) return;
+			if(parent instanceof zFeederLine) return; 
+			if(volRate > 0.8){
+				String sv =String.format("%.2f", volRate * 100);
+				zjxt_msg.show("上级节点:【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
+			 	return;  //本馈线电压合格率大于80%,不会动上级.
+			}
+			handleLimitLo((Equipment)parent);  
 		}
 	}
 }
@@ -1294,9 +666,11 @@ function String caculateU2(Equipment e, boolean isUp) {
 	if(e instanceof zTransformerFormer ||
 		e instanceof zVoltageRegulator) {
 		if(isUp) {
-			U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)+e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
+			//U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)+e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
+			U2 = e.U*1.15;
 		} else {
-			U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)-e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
+			//U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)-e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
+			U2 = e.U*0.85;
 		}
 	}
 	return String.format("%.2f", U2);

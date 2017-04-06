@@ -1389,10 +1389,15 @@ public class zjxt_CimBuild {
 	//检查遥控遥调执行结果
 	public static void checkYKYTResult() throws Exception {
 		for(Object p: cbList) {
+			if(p instanceof zFeederLine){
+				zFeederLine f = (zFeederLine)p;			
+				zjxt_msg.show("【{}】控制状态：{}", f.getName(), f.property.CanControl()); 
+			}
 			if(p instanceof Equipment) {
 				if(p instanceof zBusbarSection) {
 					continue;
 				}
+
 				Equipment e = (Equipment)p;
 				String name = e.getName();
 				String cs = null;
@@ -1414,9 +1419,10 @@ public class zjxt_CimBuild {
 	    			//int sonoff = cap.property.getyxById(cap.SWITCHID);
 	    			//zjxt_msg.show(cap.getName() + ":" + sonoff);
 					//int ch = cap.property.CheckTarget(30,sonoff);  //设定反馈检查间隔，当30秒后，检查这个电容开关开合状态是否发生变化。
-					int ch = cap.property.CheckTarget(200,pf);
-					zjxt_msg.show(name + "ch:"+ch);
+					
 					if(cs.equals(zjxt_State.cs_Kongzhi)) { //当且仅当设备状态为“控制”，才有反馈。 
+						int ch = cap.property.CheckTarget(200,pf);
+						zjxt_msg.show(name + " 获取目标执行反馈:"+ch);
 						if(ch == 1) {
 							zjxt_msg.show(name+" 上次命令执行成功");
 //							caculateX((Equipment)p);
@@ -1434,9 +1440,10 @@ public class zjxt_CimBuild {
 	    		}
 	    		if(p instanceof zVoltageRegulator) {
 	    			int tap = ((zVoltageRegulator)p).currentStep;
-					int ch = ((zVoltageRegulator)p).property.CheckTarget(200,tap);
-					zjxt_msg.show(name + "ch:"+ch);
+					
 					if(cs.equals(zjxt_State.cs_Kongzhi)){
+						int ch = ((zVoltageRegulator)p).property.CheckTarget(200,tap);
+						zjxt_msg.show(name + " 获取目标执行反馈:"+ch);
 						if(ch == 1){
 							zjxt_msg.show(name+" 命令执行成功");
 							zjxt_Cmd.updateCmd(((Equipment) p).getMrID(), 5);
@@ -1452,9 +1459,10 @@ public class zjxt_CimBuild {
 	    		}
 	    		if(p instanceof zSVG) {
 	    			float pf = ((zSVG)p).TargetPF;
-					int ch = ((zSVG)p).property.CheckTarget(200,pf);
-					zjxt_msg.show(name + "ch:"+ch);
+					
 					if(cs.equals(zjxt_State.cs_Kongzhi)){
+						int ch = ((zSVG)p).property.CheckTarget(200,pf);
+						zjxt_msg.show(name + " 获取目标执行反馈:"+ch);
 						if(ch == 1){
 							zjxt_msg.show(name+" 命令执行成功");
 //							caculateX((Equipment)p);
@@ -1471,9 +1479,10 @@ public class zjxt_CimBuild {
 	    		}
 	    		if(p instanceof zTransformerFormer) {
 	    			int tap = ((zTransformerFormer)p).currentStep;
-					int ch = ((zTransformerFormer)p).property.CheckTarget(200,tap);
-					zjxt_msg.show(name + "ch:"+ch);
+					
 					if(cs.equals(zjxt_State.cs_Kongzhi)){
+						int ch = ((zTransformerFormer)p).property.CheckTarget(200,tap);
+						zjxt_msg.show(name + " 获取目标执行反馈:"+ch);
 						if(ch == 1){
 							zjxt_msg.show(name+" 命令执行成功");
 //							caculateX((Equipment)p);
@@ -1490,9 +1499,10 @@ public class zjxt_CimBuild {
 	    		}
 	    		if(p instanceof zApf) {
 	    			float targetPf = ((zApf)p).TargetPF;
-					int ch = ((zApf)p).property.CheckTarget(200,targetPf);
-					zjxt_msg.show(name + "ch:"+ch);
+					
 					if(cs.equals(zjxt_State.cs_Kongzhi)){
+						int ch = ((zApf)p).property.CheckTarget(200,targetPf);
+						zjxt_msg.show(name + " 获取目标执行反馈:"+ch);
 						if(ch == 1) {
 							zjxt_msg.show(name+" 命令执行成功");
 //							caculateX((Equipment)p);
@@ -1509,9 +1519,10 @@ public class zjxt_CimBuild {
 	    		}
 	    		if(p instanceof zTpunbalance) {
 	    			float pf = ((zTpunbalance)p).TargetPF;
-					int ch = ((zTpunbalance)p).property.CheckTarget(200,pf);
-					zjxt_msg.show(name + "ch:"+ch);
+					
 					if(cs.equals(zjxt_State.cs_Kongzhi)){
+						int ch = ((zTpunbalance)p).property.CheckTarget(200,pf);
+						zjxt_msg.show(name + " 获取目标执行反馈:"+ch);
 						if(ch == 1){
 							zjxt_msg.show(name+" 命令执行成功");
 //							caculateX((Equipment)p);
@@ -1610,7 +1621,7 @@ public class zjxt_CimBuild {
 	    				}
 	    				tmp = Math.abs(e.Q/(3*e.U*e.I*Math.sqrt(1-Math.pow(e.PF, 2))) * 1000);
 	    			}
-	    			zjxt_msg.show("验证无功、功率因数量测的正确性值：{}", String.format("%.2f", tmp));
+	    			zjxt_msg.show("验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", String.format("%.2f", tmp));
 	    			if(0.8>=tmp || tmp>=1.2) {
 	    				//e.prop.SetAlarm("{}当前无功:{}kVar,功率因数:{},与当前电压{}V、电流{}A不对应!", e.getName(), e.Q, e.PF, e.U, e.I);
 	    				e.isMeasureError = true;
@@ -1638,14 +1649,14 @@ public class zjxt_CimBuild {
 		    		return e.isVolError;
 	    		}
 	    		double tmp = Math.abs(e.Q/(3*e.U*e.I/1000)/Math.sqrt(1-Math.pow(e.PF, 2)));
-	    		zjxt_msg.show("验证无功、功率因数量测的正确性值：{}", String.format("%.2f", tmp));
-	    		if(0.8>=tmp || tmp>=1.2) {
+	    		zjxt_msg.show("验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", String.format("%.2f", tmp));
+	    		if(tmp<=0.8 || tmp>=1.2) {
 	    			//e.prop.SetAlarm("{}当前无功:{}kVar,功率因数:{}V,与当前电压{}V、电；流{}A不对应！", e.getName(), e.Q, e.PF, e.U, e.I);
 	    			e.isMeasureError = true;
 	    			return e.isVolError;
 	    		}
 	    	}
-			System.out.println("TEST");
+			//System.out.println("TEST");
 			e.isMeasureError = false;
 			return e.isVolError;
 		} catch(Exception ex) {
