@@ -189,6 +189,7 @@ public class zjxt_kernel {
 				TickCount++;
 				if (timeTag1 >= 60) {
 					timeTag1 = 0;
+					zjxt_msg.RemoveMsg();
 					Limit.Refresh();
 //					timeTag3++;
 //					if (timeTag3 >= 48) {

@@ -1,10 +1,16 @@
 package zjxt;
 
+import java.sql.Connection;
+import java.sql.Statement;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import com.drools.zjxt.kernellib.Limit;
 import com.drools.zjxt.kernellib.zjxt_CimBuild;
+import com.drools.zjxt.kernellib.zjxt_ConnectionPool;
 import com.drools.zjxt.kernellib.zjxt_kernel;
 
 //import org.slf4j.impl.StaticLoggerBinder;
@@ -91,7 +97,63 @@ public class zjxt_msg {
 		return df_time.format(date);
 	}
 	
+	public static String format(String str, String... args) {  
+        for (int i = 0; i < args.length; i++) {  
+            str = str.replaceFirst("\\{\\}", args[i]);  
+        }  
+        return str;  
+    }  
+  
+    public static String format(String str, Object... args) {  
+        for (int i = 0; i < args.length; i++) {  
+            str = str.replaceFirst("\\{\\}", String.valueOf(args[i]));  
+        }  
+        return str;  
+    } 
+    
+    public static synchronized void RemoveMsg(){
+    	try {
+    		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
+			Statement ps = conn.createStatement();
+			String sql = "delete from tblmsglist where time_to_sec(timediff(current_timestamp,MSGTIME)) > 3600";
+			ps.execute(sql);
+			conn.close();
+			
+			sendMsg("zjxt RemoveMsg");
+		} catch (SQLException e) {
+			zjxt_kernel.mlog.error(e.toString());
+		} catch (Exception e) {
+			//e.printStackTrace();
+			zjxt_kernel.mlog.error(e.toString());
+		}
+    }
+	
+	public static synchronized void sendMsg(String msg, Object... args){
+		String message = format(msg, args);
+		Connection conn = null;
+		try {
+		    conn = zjxt_ConnectionPool.Instance().getConnection();
+			PreparedStatement ps = null;
+			 String sql = "INSERT INTO TBLMSGLIST (id,sender,receiver,msg,msgtag)"
+					+ "VALUES(0, 'zjxt', 'anyone', ?, 0)";
+			ps = conn.prepareStatement(sql);
+			//java.util.Date date = new java.util.Date();
+			//ps.setTimestamp(1, new Timestamp(date.getTime()));
+			ps.setString(1, message);
+			ps.execute();
+			conn.close();
+		} catch (SQLException e) {
+			zjxt_kernel.mlog.error(e.toString());
+		} catch (Exception e) {
+			//e.printStackTrace();
+			zjxt_kernel.mlog.error(e.toString());
+		}
+
+	
+	}
+	
 	public static synchronized void show(String msg, Object... args){
+		sendMsg(msg,args);
 		zjxt_kernel.mlog.info(msg, args);
 	}
 	
