@@ -1,18 +1,5 @@
 
 <c3p0-config>
-    <default-config>
-        <property name="initialPoolSize">3</property>
-        <property name="minPoolSize">3</property>
-        <property name="maxPoolSize">10</property>
-        <property name="acquireIncrement">1</property>
-        <property name="maxStatements">0</property>
-        <property name="maxIdleTime">60</property>
-        <property name="user">root</property>
-        <property name="password">root</property>
-        <property name="driverClass">com.mysql.jdbc.Driver</property>
-        <property name="jdbcUrl">jdbc:mysql://192.168.1.99/pwtbl?useUnicode=true&amp;characterEncoding=UTF-8</property>
-    </default-config>
-    
     <default-config1>
         <property name="initialPoolSize">3</property>
         <property name="minPoolSize">3</property>
@@ -23,6 +10,19 @@
         <property name="user">root</property>
         <property name="password">root</property>
         <property name="driverClass">com.mysql.jdbc.Driver</property>
-        <property name="jdbcUrl">jdbc:mysql://192.168.0.190/pwtbl?useUnicode=true&amp;characterEncoding=UTF-8</property>
+        <property name="jdbcUrl">jdbc:mysql://192.168.1.99/pwtbl?useUnicode=true&amp;characterEncoding=UTF-8</property>
     </default-config1>
+    
+    <default-config>
+        <property name="initialPoolSize">3</property>
+        <property name="minPoolSize">3</property>
+        <property name="maxPoolSize">10</property>
+        <property name="acquireIncrement">1</property>
+        <property name="maxStatements">0</property>
+        <property name="maxIdleTime">60</property>
+        <property name="user">root</property>
+        <property name="password">root</property>
+        <property name="driverClass">com.mysql.jdbc.Driver</property>
+        <property name="jdbcUrl">jdbc:mysql://192.168.0.190/pwtbl?useUnicode=true&amp;characterEncoding=UTF-8</property>
+    </default-config>
 </c3p0-config>

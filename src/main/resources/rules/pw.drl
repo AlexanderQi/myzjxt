@@ -44,7 +44,7 @@ rule "feederLine"
     		zjxt_msg.show("馈线【{}】当前有设备正在动作中...", feederName);
     		return;
     	}
-    	String cs = feederLine.property.CanControl(); //0:不参与计算; 1:建议 ; 2:控制;	
+    	String cs = feederLine.property.CanControl(); 
     	zjxt_msg.show("【{}】状态为 {}.",feederName,cs);
     	if(cs.equals(zjxt_State.cs_bucanyu)) {
     		zjxt_msg.show(feederName+"退出计算.");
@@ -57,6 +57,8 @@ rule "feederLine"
         float volRate; //电压合格率
         int volMeaErrSize = 0; //量测错误的设备数量
         int qualifiedSize = 0; //合格数量
+        int overUp = 0; //越上限数量
+        int overLo = 0;  //越下限数量
         int size = equipments.size();
         
         for(int i=0; i<size; i++) {
@@ -94,6 +96,10 @@ rule "feederLine"
 				if(u<=lv.upup && u>=lv.lolo) { //电压
 					qualifiedSize++;
 				}
+				if(u > lv.upup)
+					overUp++;
+				if(u < lv.lolo)
+					overLo++;
 			}
         }//for
         
@@ -103,6 +109,7 @@ rule "feederLine"
         	volRate = (float) qualifiedSize/(size-volMeaErrSize);	
         }
         zjxt_msg.show("馈线【{}】当前电压合格率:{}%", feederName,String.format("%.2f", volRate * 100));
+        zjxt_msg.show("馈线【{}】越电压上限数量:{} 越下限数量:{}", feederName,overUp, overLo);
         if(volRate >= 0.99){
         	zjxt_msg.show("电压均正常，计算无功设备功率因数合格率，开始无功优化...");
         	return;
@@ -113,7 +120,7 @@ rule "feederLine"
         		//String equiName = eq.getName();
         		//String eid = eq.getMrID();
 				
-				checkU(eq,volRate);
+				checkU(eq,volRate,overUp,overLo);
 	    	}
     	}
     	
@@ -560,7 +567,7 @@ function void dealReactive(zNode node) {
 }
 
 
-function void checkU(Equipment e, float volRate) {
+function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 	PowerSystemResource parent = zjxt_CimBuild.GetById(e.parentId);
 	/*
 	if(parent != null){
@@ -581,7 +588,10 @@ function void checkU(Equipment e, float volRate) {
 				zjxt_msg.show("上级节点:【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
 			 	return;  //本馈线电压合格率大于80%,不会动上级.
 			}
-			 handleLimitUp((Equipment)parent);  //找上级处理
+			if(overUp > overLo)
+			 	handleLimitUp((Equipment)parent);  //找上级处理
+			else
+				zjxt_msg.show("上级节点:【{}】拒绝动作,判断当前馈线越下限数量多于越上限数量,不能进行降压处理.",parent.getName());
 		} 
 	} else if(e.U < e.limit.lolo) { //电压越下限
 		zjxt_msg.show("节点【{}】当前电压越考核下限, U：{}V, 考核下限：{}V", e.getName(), e.U, e.limit.lolo);
@@ -595,7 +605,10 @@ function void checkU(Equipment e, float volRate) {
 				zjxt_msg.show("上级节点:【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
 			 	return;  //本馈线电压合格率大于80%,不会动上级.
 			}
-			handleLimitLo((Equipment)parent);  
+			if(overLo >= overUp)
+				handleLimitLo((Equipment)parent);
+			else
+			  zjxt_msg.show("上级节点:【{}】拒绝动作,判断当前馈线越上限数量多于越下限数量,不能进行升压处理.",parent.getName());
 		}
 	}
 }
