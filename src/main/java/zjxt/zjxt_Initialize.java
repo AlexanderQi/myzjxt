@@ -593,7 +593,7 @@ public class zjxt_Initialize {
 				fLine.setMrID(id);
 				fLine.setSubStation(stationList.get(stationId));
 				fLine.busid = "-1";
-				//Mapping(rSet, fLine);
+				Mapping(rSet, fLine);
 			}
 			
 			if(JkParam.Instance().IsSmartPrj){
@@ -658,7 +658,7 @@ public class zjxt_Initialize {
 					obj.voltage = voltageMap.get(obj.VLID);
 					obj.IsGroup = true;
 					obj.graphid = fid;
-					//Mapping(rSet, obj);
+					Mapping(rSet, obj);
 				}
 				zjxt_msg.show("初始化补偿设备单元...");
 				sql = "select fi.*,fm.SWITCHYXID from tblfeedcapacitoritem fi left join tblfeedcapacitoritemmeasure fm on fm.ID=fi.ID order by fi.feedcapacitorid ";
@@ -701,7 +701,7 @@ public class zjxt_Initialize {
 //					obj.VLID = rSet.getString("VOLTAGELEVELID");
 //					obj.vlid = rSet.getString("VOLTAGELEVELID");
 					//obj.setElementStyle("55");
-					//Mapping(rSet, obj);
+					Mapping(rSet, obj);
 					cg.AddUnit(obj);
 				}
 				
@@ -739,7 +739,7 @@ public class zjxt_Initialize {
 //					}
 					obj.voltage = voltageMap.get(obj.VLID);
 					obj.graphid = fid;
-					//Mapping(rSet, obj);
+					Mapping(rSet, obj);
 				}
 				
 				zjxt_msg.show("初始化调压器...");
@@ -772,7 +772,7 @@ public class zjxt_Initialize {
 //					}
 					obj.voltage = voltageMap.get(obj.VLID);
 					obj.graphid = fid;
-					//Mapping(rSet, obj);
+					Mapping(rSet, obj);
 				}
 				
 				zjxt_msg.show("初始化开关...");
@@ -788,7 +788,7 @@ public class zjxt_Initialize {
 					obj.setElementStyle("1");
 					obj.YXID = rSet.getString("switchyxid");
 					obj.graphid = fid;
-					//Mapping(rSet, obj);
+					Mapping(rSet, obj);
 				}
 			}
 			

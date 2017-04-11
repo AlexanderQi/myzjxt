@@ -51,7 +51,7 @@ public class zjxt_CimBuild {
 	public static zjxt_Measure Measure = zjxt_Measure.Instance();
 	public static List<PowerSystemResource> cbList = new ArrayList<PowerSystemResource>();
 	public static List<List<PowerSystemResource>> list = new ArrayList<List<PowerSystemResource>>();
-	public static Map<String, Float> XMap = new HashMap<String, Float>(); //读取设备至线路首端的电抗配置文件
+//	public static Map<String, Float> XMap = new HashMap<String, Float>(); //读取设备至线路首端的电抗配置文件
 //	public static boolean canControl = true;
 	public static PowerSystemResource GetByName(String name) {
 		for (Iterator<PowerSystemResource> iterator = cbList.iterator(); iterator
@@ -1185,11 +1185,11 @@ public class zjxt_CimBuild {
 					p.I = p.prop.getyc("LINEIYCID");
 					p.currentStep = (int)p.prop.getyc("TAPCHANGERYCID");
 					p.loadFactor = Math.sqrt(3) * p.U * p.I / p.capacity / 1000;
-					if(XMap.get(p.getMrID()) != null && XMap.get(p.getMrID())!=0.0f) {
-						if(XMap.get(p.getMrID())!=0.0f) {
-							p.X  = XMap.get(p.getMrID());
-						}
-					}
+//					if(XMap.get(p.getMrID()) != null && XMap.get(p.getMrID())!=0.0f) {
+//						if(XMap.get(p.getMrID())!=0.0f) {
+//							p.X  = XMap.get(p.getMrID());
+//						}
+//					}
 					p.stepvoltageincrement = ((zVoltageRegulator)p).stepvoltageincrement;
 					p.kind = CommonListCode.VOLTAGE_KIND;
 					
@@ -1217,11 +1217,11 @@ public class zjxt_CimBuild {
 					}
 					
 					p.capacity = (Double) p.get("RATEDCAPACITY");
-					if(XMap.get(p.getMrID()) != null) {
-						if(XMap.get(p.getMrID())!=0.0f) {
-							p.X  = XMap.get(p.getMrID());
-						}
-					}
+//					if(XMap.get(p.getMrID()) != null) {
+//						if(XMap.get(p.getMrID())!=0.0f) {
+//							p.X  = XMap.get(p.getMrID());
+//						}
+//					}
 					if(p.capacity-p.Qc == 0) {
 						p.Qm = 0;
 					} else if(p.Qc == 0) {
@@ -1248,11 +1248,11 @@ public class zjxt_CimBuild {
 					p.Qc = p.prop.getyc("QCYCID");
 					p.Qm = (Double)p.get("MAXRATEDCAPACITY")-p.Qc;
 					p.minratedCapacity = (double) p.get("MINRATEDCAPACITY");
-					if(XMap.get(p.getMrID()) != null) {
-						if(XMap.get(p.getMrID())!=0.0f) {
-							p.X  = XMap.get(p.getMrID());
-						}
-					}
+//					if(XMap.get(p.getMrID()) != null) {
+//						if(XMap.get(p.getMrID())!=0.0f) {
+//							p.X  = XMap.get(p.getMrID());
+//						}
+//					}
 					p.kind = CommonListCode.REACTIVE_POWER_KIND;
 				} else if(p instanceof zTransformerFormer) {
 					p.controlState = p.prop.CanControl();
@@ -1264,11 +1264,11 @@ public class zjxt_CimBuild {
 					p.loadFactor = Math.sqrt(Math.pow(p.P, 2)+Math.pow(p.Q, 2)) /p.capacity;
 					p.currentStep = (int)p.prop.getyc("TAPCHANGERYCID");
 					p.stepvoltageincrement = ((zTransformerFormer)p).stepvoltageincrement;
-					if(XMap.get(p.getMrID()) != null) {
-						if(XMap.get(p.getMrID())!=0.0f) {
-							p.X  = XMap.get(p.getMrID());
-						}
-					}
+//					if(XMap.get(p.getMrID()) != null) {
+//						if(XMap.get(p.getMrID())!=0.0f) {
+//							p.X  = XMap.get(p.getMrID());
+//						}
+//					}
 					p.kind = CommonListCode.VOLTAGE_KIND;
 				} else if(p instanceof zApf) {
 					p.controlState = p.prop.CanControl();
@@ -1286,11 +1286,11 @@ public class zjxt_CimBuild {
 					p.P = p.prop.getyc("PYCID");
 					p.Qc = p.prop.getyc("QCYCID");
 					p.Qm = (3*basicVoltage*ratedcompensationi/1000)-p.Qc;
-					if(XMap.get(p.getMrID()) != null) {
-						if(XMap.get(p.getMrID())!=0.0f) {
-							p.X  = XMap.get(p.getMrID());
-						}
-					}
+//					if(XMap.get(p.getMrID()) != null) {
+//						if(XMap.get(p.getMrID())!=0.0f) {
+//							p.X  = XMap.get(p.getMrID());
+//						}
+//					}
 					p.minratedCapacity = (3*basicVoltage*ratedcompensationi/1000)*(-1);
 					p.kind = CommonListCode.REACTIVE_POWER_KIND;
 				} else if(p instanceof zTpunbalance) {
@@ -1306,11 +1306,11 @@ public class zjxt_CimBuild {
 					p.workMode = p.prop.getyc("WMYCID");
 					p.minratedCapacity = (double) p.get("MINCOMPENSATION");
 					p.Qm = (float)((Double) p.get("MAXCOMPENSATION")-p.Qc);
-					if(XMap.get(p.getMrID()) != null) {
-						if(XMap.get(p.getMrID())!=0.0f) {
-							p.X  = XMap.get(p.getMrID());
-						}
-					}
+//					if(XMap.get(p.getMrID()) != null) {
+//						if(XMap.get(p.getMrID())!=0.0f) {
+//							p.X  = XMap.get(p.getMrID());
+//						}
+//					}
 					p.kind = CommonListCode.REACTIVE_POWER_KIND;
 				}
 			}
@@ -1332,20 +1332,20 @@ public class zjxt_CimBuild {
 	/**
 	 * 读取动态电抗值存入XMap
 	 */
-	public static void loadX() {
-		clearX();
-		IniEditor editor = new IniEditor();
-		File file = new File(System.getProperty("user.dir")+File.separator+"equipmentX.ini");
-		try {
-			editor.load(file);
-			List<String> optionNames = editor.optionNames("equipment-X");
-			for(int i=0; i<optionNames.size(); i++) {
-				XMap.put(optionNames.get(i), Float.parseFloat(editor.get("equipment-X", optionNames.get(i))));
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+//	public static void loadX() {
+//		clearX();
+//		IniEditor editor = new IniEditor();
+//		File file = new File(System.getProperty("user.dir")+File.separator+"equipmentX.ini");
+//		try {
+//			editor.load(file);
+//			List<String> optionNames = editor.optionNames("equipment-X");
+//			for(int i=0; i<optionNames.size(); i++) {
+//				XMap.put(optionNames.get(i), Float.parseFloat(editor.get("equipment-X", optionNames.get(i))));
+//			}
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//	}
 	
 	/**
 	 * 修改电抗值
