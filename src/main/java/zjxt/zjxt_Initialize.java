@@ -67,27 +67,25 @@ public class zjxt_Initialize {
 			
 			Init_BasicProperty();
 			if(JkParam.Instance().IsSmartPrj) {
-				
-				Init_SmartEquipmentProperty();
+				zjxt_msg.showwarn("配网AVC1.0 不支持SVG,APF等设备.");
+				//Init_SmartEquipmentProperty();
 			}else {
-				Init_TyqProperty();
-				//Init_TfProperty();
-				Init_CompProperty(); //220V电容量测
+				Init_TransformerProperty();//配网变压器
+				Init_TyqProperty();	//配网调压器
+				Init_CompProperty(); //配网电容器
+				Init_ComControlParam();  //配网电容器控制参数
+
+				//Init_TfProperty();	
 				//Ini_CompPropertyEx(); //10kV电容量测
-				Init_TransformerProperty(); //配变的量测
-				
-				Init_ApfProperty();
-				
-				Init_balanceProperty();
-				
-				Init_SvgProperty();
-				Init_ComControlParam();
+				//Init_TransformerProperty(); //配变的量测
+				//Init_ApfProperty();
+				//Init_balanceProperty();
+				//Init_SvgProperty();
 			}
-				
 			//zjxt_Measure.Instance().YCYXDB = true;    //遥测遥信数据来自数据库，否则来自内存库
 			return true;
 		} catch (Exception e) {
-			extracted(e);
+			zjxt_msg.showwarn("Init()->"+e.getMessage());
 			return false;
 		}
 		
@@ -563,9 +561,9 @@ public class zjxt_Initialize {
 			}
 			
 			//虚拟一个厂站专门所有管理馈线
-			feedStation = zjxt_CimBuild.newSubStation(cArea);
-			feedStation.setName("综合馈线管理");
-			feedStation.setMrID("100100");
+//			feedStation = zjxt_CimBuild.newSubStation(cArea);
+//			feedStation.setName("综合馈线管理");
+//			feedStation.setMrID("100100");
 			
 			//普通厂站初始化
 			zjxt_msg.show("初始化厂站...");
@@ -590,16 +588,19 @@ public class zjxt_Initialize {
 				String id = rSet.getString("id");
 				if(!topo.zNodeList.containsKey(id)) continue;
 				zFeederLine fLine = zjxt_CimBuild.newFeederLine(stationList.get(stationId));  
+				
 				fLine.setName(rSet.getString("NAME"));
 				fLine.setMrID(id);
 				fLine.setSubStation(stationList.get(stationId));
 				fLine.busid = "-1";
-				Mapping(rSet, fLine);
+				//Mapping(rSet, fLine);
 			}
 			
 			if(JkParam.Instance().IsSmartPrj){
 				//智能配网项目
-				Init_SmartPrj();
+				//Init_SmartPrj();
+				zjxt_msg.showwarn("配网AVC1.0 不支持SVG,APF等设备.");
+				InitError = true;
 			}else{
 				//普通配网项目
 				zjxt_msg.show("普通配网项目初始化...");
@@ -648,24 +649,16 @@ public class zjxt_Initialize {
 					zFeederLine fLine = (zFeederLine)psr;
 					
 					zCompensator obj = zjxt_CimBuild.newCompensator(fLine, false);
-					
 					obj.line = fLine;
 					obj.setName(rSet.getString("name"));
 					obj.setMrID(rSet.getString("id"));
 					obj.COMPENSATEPOINTID = rSet.getString("COMPENSATEPOINTID");	
 					obj.VLID = rSet.getString("VOLTAGELEVELID");
 					obj.vlid = rSet.getInt("NOMINALVOLTAGE");
-//					if("1".equals(obj.VLID)) {
-//						obj.vlid = 220;
-//					} else if("2".equals(obj.VLID)) {
-//						obj.vlid = 10000;
-//					} else if("3".equals(obj.VLID)) {
-//						obj.vlid = 380;
-//					}
 					obj.voltage = voltageMap.get(obj.VLID);
 					obj.IsGroup = true;
 					obj.graphid = fid;
-					Mapping(rSet, obj);
+					//Mapping(rSet, obj);
 				}
 				zjxt_msg.show("初始化补偿设备单元...");
 				sql = "select fi.*,fm.SWITCHYXID from tblfeedcapacitoritem fi left join tblfeedcapacitoritemmeasure fm on fm.ID=fi.ID order by fi.feedcapacitorid ";
@@ -708,13 +701,13 @@ public class zjxt_Initialize {
 //					obj.VLID = rSet.getString("VOLTAGELEVELID");
 //					obj.vlid = rSet.getString("VOLTAGELEVELID");
 					//obj.setElementStyle("55");
-					Mapping(rSet, obj);
+					//Mapping(rSet, obj);
 					cg.AddUnit(obj);
 				}
 				
 				zjxt_msg.show("初始化配变...");
-				sql = "SELECT t2.*,t4.HWRC, t3.LOWSTEP,t3.HIGHSTEP,t3.STEPVOLTAGEINCREMENT,t5.NOMINALVOLTAGE FROM TBLELEMENT T1 "
-						+ "inner JOIN TBLFEEDTRANS t2 on t1.id=t2.id "
+				sql = "SELECT t2.*,t4.HWRC, t3.LOWSTEP,t3.HIGHSTEP,t3.STEPVOLTAGEINCREMENT,t5.NOMINALVOLTAGE FROM "
+						+ "TBLFEEDTRANS t2 "
 						+ "left join tbltapchangertype t3 on t2.TAPCHANGERID=t3.id "
 						+ "left join tbltransformertype t4 on t2.TRANSFORMERTYPEID=t4.id "
 						+ "left join tblvoltagelevel t5 on t2.voltagelevelid=t5.id "
@@ -746,12 +739,12 @@ public class zjxt_Initialize {
 //					}
 					obj.voltage = voltageMap.get(obj.VLID);
 					obj.graphid = fid;
-					Mapping(rSet, obj);
+					//Mapping(rSet, obj);
 				}
 				
 				zjxt_msg.show("初始化调压器...");
-				sql = "SELECT t2.*,t3.LOWSTEP,t3.HIGHSTEP,t3.STEPVOLTAGEINCREMENT,t4.NOMINALVOLTAGE FROM tblelement t1 "
-						+ "inner join tblfeedvoltageregulator t2 on t1.id=t2.id "
+				sql = "SELECT t2.*,t3.LOWSTEP,t3.HIGHSTEP,t3.STEPVOLTAGEINCREMENT,t4.NOMINALVOLTAGE FROM "
+						+ "tblfeedvoltageregulator t2 "
 						+ "left join tbltapchangertype t3 on t3.id=t2.TAPCHANGERID "
 						+ "left join tblvoltagelevel t4 on t2.voltagelevelid=t4.id";
 				rSet = stat.executeQuery(sql);
@@ -762,7 +755,6 @@ public class zjxt_Initialize {
 					String fid = rSet.getString("feedid");           
 					zFeederLine fLine = (zFeederLine)zjxt_CimBuild.GetById(fid);
 					zVoltageRegulator obj = zjxt_CimBuild.newVoltageRegulator(fLine);
-					//zTransformerFormer obj = zjxt_CimBuild.newTransformerFormer(fLine);
 					obj.lowStep = rSet.getInt("LOWSTEP");
 					obj.highStep = rSet.getInt("HIGHSTEP");
 					obj.stepvoltageincrement = rSet.getDouble("STEPVOLTAGEINCREMENT");
@@ -780,7 +772,7 @@ public class zjxt_Initialize {
 //					}
 					obj.voltage = voltageMap.get(obj.VLID);
 					obj.graphid = fid;
-					Mapping(rSet, obj);
+					//Mapping(rSet, obj);
 				}
 				
 				zjxt_msg.show("初始化开关...");
@@ -796,11 +788,11 @@ public class zjxt_Initialize {
 					obj.setElementStyle("1");
 					obj.YXID = rSet.getString("switchyxid");
 					obj.graphid = fid;
-					Mapping(rSet, obj);
+					//Mapping(rSet, obj);
 				}
 			}
 			
-			Init_SmartPrj();
+			//Init_SmartPrj();
 //			Init_SmartEquipmentProperty();
 			
 			dbConnection.close();
@@ -852,20 +844,20 @@ public class zjxt_Initialize {
 	
 	private static void addProperty(zjxt_Property property,String MeasureId,String ProName,boolean IsYcType){
 		if(MeasureId == null){
-			zjxt_msg.show("addProperty->MeasureId=null, 量测名:"+ProName);
+			zjxt_msg.showwarn("addProperty->MeasureId=null, 量测名:"+ProName);
 			return;
 		}
 		if(IsYcType){
 			zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(MeasureId);
 			if(yc == null){
-				zjxt_msg.show("addProperty->该YCID不存在, 量测名:"+ProName);
+				zjxt_msg.showwarn("addProperty->该YCID不存在, 量测名:"+ProName);
 				return;
 			}
 			property.Add(MeasureId, ProName, yc.ca, yc.czh, yc.ych);
 		}else{
 			zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(MeasureId);
 			if(yx == null){
-				zjxt_msg.show("addProperty->该YXID不存在于遥信表:"+MeasureId+" 量测名:"+ProName);
+				zjxt_msg.showwarn("addProperty->该YXID不存在于遥信表:"+MeasureId+" 量测名:"+ProName);
 				return;
 			}
 
@@ -873,73 +865,73 @@ public class zjxt_Initialize {
 		}
 	}
 	
-	private static void addproperty_tf(zTransformerFormer tf,String ycid, String proName){
-		if(ycid == null){
-			zjxt_msg.show("addproperty_tyq->YCID=null,设备名:"+tf.getName()+" YC类型:"+proName);
-			return;
-		}
-		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
-		if(yc == null){
-			zjxt_msg.show("addproperty_comp->该YCID不存在于遥测表:"+ycid+" 设备名:"+tf.getName()+" YC类型:"+proName);
-			return;
-		}
-		tf.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
-	}
-	
-	private static void addproperty_apf(zApf apf,String ycid, String proName){
-		if(ycid == null){
-			zjxt_msg.show("addproperty_apf->YCID=null,设备名:"+apf.getName()+" YC类型:"+proName);
-			return;
-		}
-		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
-		if(yc == null){
-			zjxt_msg.show("addproperty_apf->该YCID不存在于遥测表:"+ycid+" 设备名:"+apf.getName()+" YC类型:"+proName);
-			return;
-		}
-		apf.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
-	}
-	
-	private static void addproperty_yx_apf(zApf apf,String yxid, String proName){
-		if(yxid == null){
-			zjxt_msg.show("addproperty_yx_apf->YXID=null,设备名:"+apf.getName()+" YX类型:"+proName);
-			return;
-		}
-		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
-		if(yx == null){
-			zjxt_msg.show("addproperty_yx_apf->该YXID不存在于遥测表:"+yxid+" 设备名:"+apf.getName()+" YX类型:"+proName);
-			return;
-		}
-		apf.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
-	}
-	
-	private static void addproperty_balance(zTpunbalance balance,String ycid, String proName){
-		if(ycid == null){
-			zjxt_msg.show("addproperty_balance->YCID=null,设备名:"+balance.getName()+" YC类型:"+proName);
-			return;
-		}
-		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
-		if(yc == null){
-			zjxt_msg.show("addproperty_balance->该YCID不存在于遥测表:"+ycid+" 设备名:"+balance.getName()+" YC类型:"+proName);
-			return;
-		}
-		balance.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
-	}
-	
-	private static void addproperty_yx_balance(zTpunbalance balance,String yxid, String proName){
-		if(yxid == null){
-			zjxt_msg.show("addproperty_yx_balance->YXID=null,设备名:"+balance.getName()+" YX类型:"+proName);
-			return;
-		}
-		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
-		if(yx == null){
-			zjxt_msg.show("addproperty_yx_balance->该YXID不存在于遥测表:"+yxid+" 设备名:"+balance.getName()+" YX类型:"+proName);
-			return;
-		}
-		balance.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
-	}
-	
-	
-	
+//	private static void addproperty_tf(zTransformerFormer tf,String ycid, String proName){
+//		if(ycid == null){
+//			zjxt_msg.show("addproperty_tyq->YCID=null,设备名:"+tf.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
+//		if(yc == null){
+//			zjxt_msg.show("addproperty_comp->该YCID不存在于遥测表:"+ycid+" 设备名:"+tf.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		tf.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
+//	}
+//	
+//	private static void addproperty_apf(zApf apf,String ycid, String proName){
+//		if(ycid == null){
+//			zjxt_msg.show("addproperty_apf->YCID=null,设备名:"+apf.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
+//		if(yc == null){
+//			zjxt_msg.show("addproperty_apf->该YCID不存在于遥测表:"+ycid+" 设备名:"+apf.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		apf.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
+//	}
+//	
+//	private static void addproperty_yx_apf(zApf apf,String yxid, String proName){
+//		if(yxid == null){
+//			zjxt_msg.show("addproperty_yx_apf->YXID=null,设备名:"+apf.getName()+" YX类型:"+proName);
+//			return;
+//		}
+//		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
+//		if(yx == null){
+//			zjxt_msg.show("addproperty_yx_apf->该YXID不存在于遥测表:"+yxid+" 设备名:"+apf.getName()+" YX类型:"+proName);
+//			return;
+//		}
+//		apf.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
+//	}
+//	
+//	private static void addproperty_balance(zTpunbalance balance,String ycid, String proName){
+//		if(ycid == null){
+//			zjxt_msg.show("addproperty_balance->YCID=null,设备名:"+balance.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
+//		if(yc == null){
+//			zjxt_msg.show("addproperty_balance->该YCID不存在于遥测表:"+ycid+" 设备名:"+balance.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		balance.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
+//	}
+//	
+//	private static void addproperty_yx_balance(zTpunbalance balance,String yxid, String proName){
+//		if(yxid == null){
+//			zjxt_msg.show("addproperty_yx_balance->YXID=null,设备名:"+balance.getName()+" YX类型:"+proName);
+//			return;
+//		}
+//		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
+//		if(yx == null){
+//			zjxt_msg.show("addproperty_yx_balance->该YXID不存在于遥测表:"+yxid+" 设备名:"+balance.getName()+" YX类型:"+proName);
+//			return;
+//		}
+//		balance.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
+//	}
+//	
+//	
+//	
 	private static void addproperty_tyq(zVoltageRegulator tyq,String ycid, String proName){
 		if(ycid == null){
 			zjxt_msg.show("addproperty_tyq->YCID=null,设备名:"+tyq.getName()+" YC类型:"+proName);
@@ -965,76 +957,76 @@ public class zjxt_Initialize {
 		}
 		tyq.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
 	}
-	
-	private static void addproperty_comp(zCompensator comp,String ycid, String proName){
-		if(ycid == null){
-			zjxt_msg.show("addproperty_comp->YCID=null,设备名:"+comp.getName()+" YC类型:"+proName);
-			return;
-		}
-		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
-		if(yc == null){
-			zjxt_msg.show("addproperty_comp->该YCID不存在于遥测表:"+ycid+" 设备名:"+comp.getName()+" YC类型:"+proName);
-			return;
-		}
-		comp.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
-	}
-	
-	private static void addproperty_tsf(zTSF tsf,String ycid, String proName){
-		if(ycid == null){
-			zjxt_msg.show("addproperty_tsf->YCID=null,设备名:"+tsf.getName()+" Measure名:"+proName);
-			return;
-		}
-		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
-		if(yc == null){
-			zjxt_msg.show("addproperty_tsf->该YCID不存在于遥测表:"+ycid+" 设备名:"+tsf.getName()+" Measure名:"+proName);
-			return;
-		}
-		tsf.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
-	}
-	
-	private static void addproperty_yx_tsf(zTSF tsf,String yxid, String proName){
-		if(yxid == null){
-			zjxt_msg.show("addproperty_yx_tsf->YXID=null,设备名:"+tsf.getName()+" Measure名:"+proName);
-			return;
-		}
-		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
-		if(yx == null){
-			zjxt_msg.show("addproperty_yx_tsf->该YXID不存在于遥信表:"+yxid+" 设备名:"+tsf.getName()+" Measure名:"+proName);
-			return;
-		}
-		tsf.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
-	}
-	
-	private static void addproperty_svg(zSVG svg,String ycid, String proName){
-		if(ycid == null){
-			zjxt_msg.show("addproperty_svg->YCID=null,设备名:"+svg.getName()+" Measure名:"+proName);
-			return;
-		}
-		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
-		if(yc == null){
-			zjxt_msg.show("addproperty_svg->该YCID不存在于遥测表:"+ycid+" 设备名:"+svg.getName()+" Measure名:"+proName);
-			return;
-		}
-		svg.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
-	}
-	
-	private static void addproperty_yx_svg(zSVG svg,String yxid, String proName){
-		if(yxid == null){
-			zjxt_msg.show("addproperty_yx_svg->YXID=null,设备名:"+svg.getName()+" Measure名:"+proName);
-			return;
-		}
-		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
-		if(yx == null){
-			zjxt_msg.show("addproperty_yx_svg->该YXID不存在于遥信表:"+yxid+" 设备名:"+svg.getName()+" Measure名:"+proName);
-			return;
-		}
-		svg.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
-	}
+//	
+//	private static void addproperty_comp(zCompensator comp,String ycid, String proName){
+//		if(ycid == null){
+//			zjxt_msg.show("addproperty_comp->YCID=null,设备名:"+comp.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
+//		if(yc == null){
+//			zjxt_msg.show("addproperty_comp->该YCID不存在于遥测表:"+ycid+" 设备名:"+comp.getName()+" YC类型:"+proName);
+//			return;
+//		}
+//		comp.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
+//	}
+//	
+//	private static void addproperty_tsf(zTSF tsf,String ycid, String proName){
+//		if(ycid == null){
+//			zjxt_msg.show("addproperty_tsf->YCID=null,设备名:"+tsf.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
+//		if(yc == null){
+//			zjxt_msg.show("addproperty_tsf->该YCID不存在于遥测表:"+ycid+" 设备名:"+tsf.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		tsf.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
+//	}
+//	
+//	private static void addproperty_yx_tsf(zTSF tsf,String yxid, String proName){
+//		if(yxid == null){
+//			zjxt_msg.show("addproperty_yx_tsf->YXID=null,设备名:"+tsf.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
+//		if(yx == null){
+//			zjxt_msg.show("addproperty_yx_tsf->该YXID不存在于遥信表:"+yxid+" 设备名:"+tsf.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		tsf.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
+//	}
+//	
+//	private static void addproperty_svg(zSVG svg,String ycid, String proName){
+//		if(ycid == null){
+//			zjxt_msg.show("addproperty_svg->YCID=null,设备名:"+svg.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(ycid);
+//		if(yc == null){
+//			zjxt_msg.show("addproperty_svg->该YCID不存在于遥测表:"+ycid+" 设备名:"+svg.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		svg.property.Add(ycid, proName, yc.ca, yc.czh, yc.ych);
+//	}
+//	
+//	private static void addproperty_yx_svg(zSVG svg,String yxid, String proName){
+//		if(yxid == null){
+//			zjxt_msg.show("addproperty_yx_svg->YXID=null,设备名:"+svg.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(yxid);
+//		if(yx == null){
+//			zjxt_msg.show("addproperty_yx_svg->该YXID不存在于遥信表:"+yxid+" 设备名:"+svg.getName()+" Measure名:"+proName);
+//			return;
+//		}
+//		svg.property.Add(yxid, proName, yx.ca, yx.czh, yx.yxh);
+//	}
 	
 	public static void Init_BasicProperty()throws Exception{
 		String eid = "";
 		try {
-			zjxt_msg.show("初始化设备拓扑信息...");
+			zjxt_msg.show("初始化设备基础属性...");
 			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
 			Statement stat = connection.createStatement();
 			String sql = "select t.id,t.parentid,t.groupid from tblelement t";
@@ -1042,13 +1034,14 @@ public class zjxt_Initialize {
 			while(rSet.next()){
 			    eid = rSet.getString("ID");
 				PowerSystemResource psr = zjxt_CimBuild.GetById(eid);
+				
 				if(psr == null){
 					continue;
 				}
 				psr.groupid = rSet.getString("groupid");
 				psr.parentid = rSet.getString("parentid");
 				
-				Mapping(rSet, psr);
+				//Mapping(rSet, psr);
 			}						
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -1056,67 +1049,117 @@ public class zjxt_Initialize {
 		}
 	}
 	
-
+	public static void Init_CompProperty()throws Exception{
+		try {
+			zjxt_msg.show("初始化配电电容器量测...");
+			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
+			Statement stat = connection.createStatement();
+			String sql = "select t.*,c.name,c.schemeid from tblfeedcapacitormeasure t inner join tblfeedcapacitor c on t.id=c.id";
+			ResultSet rSet = stat.executeQuery(sql);
+			while(rSet.next()){
+				String eid = rSet.getString("ID");
+				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(eid);  
+				if(comp == null){
+					zjxt_msg.showwarn("Init_CompProperty->电容量测初始化失败! ID:"+eid);
+					continue;
+				}
+				comp.prop = comp.property;	
+				comp.SWITCHID = rSet.getString("SWITCHYXID");
+				//comp.SCHEMEID =  rSet.getString("SCHEMEID");
+				comp.parentId = topo.zNodeList.get(eid).parentId;
+				comp.Id = eid;
+				Mapping(rSet, comp.property);
+				comp.U = comp.property.getyc("UYCID");
+				comp.Q = comp.property.getyc("QYCID");
+			}	
+			
+			zjxt_msg.show("初始化配电电容器子组量测...");
+			sql = "SELECT t.*,c.FEEDCAPACITORID FROM tblfeedcapacitoritemmeasure t INNER JOIN tblfeedcapacitoritem c ON t.id=c.id";
+			rSet = stat.executeQuery(sql);
+			while(rSet.next()) {
+				String eid = rSet.getString("ID");
+				String parentId = rSet.getString("FEEDCAPACITORID");
+				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(parentId);  
+				if(comp == null) {
+					zjxt_msg.showwarn("Init_CompProperty->电容子组量测初始化失败! 找不到FEEDCAPACITORID:"+parentId);
+					continue;
+				}
+				
+				Mapping(rSet, comp.property);
+				comp.prop = comp.property;
+//				comp.SCHEMEID =  rSet.getString("SCHEMEID");
+				for(zCompensator c:comp.UnitList) {
+					if(c.Id.equals(eid)) {
+						comp.SWITCHID = rSet.getString("SWITCHYXID");
+					}
+				}
+			}	
+			
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			zjxt_msg.showwarn("Init_CompItemProperty->", e);
+		}
+	}
 	public static void Init_TfProperty()throws Exception{
 		String eid = "";
-		String name = "";
+		//String name = "";
 		
 		try {
-			zjxt_msg.show("初始化有载变压器量测...");
+			zjxt_msg.show("初始化变压器量测...");
 			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
 			Statement stat = connection.createStatement();
 			String sql = "select t.* from tblfeedtransmeasure t inner join tblfeedtrans f on t.id=f.id";
 					//"select * from tblfeedtransmeasure";
 			ResultSet rSet = stat.executeQuery(sql);
+			String ycid;
 			while(rSet.next()){
 			    eid = rSet.getString("ID");
 				zTransformerFormer tf = (zTransformerFormer)zjxt_CimBuild.GetById(eid);
-				Mapping(rSet, tf.property);
+				zjxt_Property p = tf.property;
 				
-				tf.U = tf.property.getyc("UYCID");
-				//name = tf.getName();
-				String ycid = rSet.getString("UAYCID");
-				addproperty_tf(tf, ycid, "ua");
+				//tf.U = tf.property.getyc("UYCID");			
+				ycid = rSet.getString("UYCID");  //当前电压量测
+				addProperty(p, ycid, "U", true);
 				
-				ycid = rSet.getString("IAYCID");
-				addproperty_tf(tf, ycid, "ia");
-							
 				ycid = rSet.getString("PYCID");
-				addproperty_tf(tf, ycid, "p");
+				addProperty(p, ycid, "P", true);
+				
+				ycid = rSet.getString("QYCID");
+				addProperty(p, ycid, "Q", true);
+
+				ycid = rSet.getString("IYCID");
+				addProperty(p, ycid, "I", true);
+
+				ycid = rSet.getString("TAPCHANGERYCID");  //当前档位
+				addProperty(p, ycid, "TAP", true);
+
+				ycid = rSet.getString("ACTIONCOUNTINDAYYCID"); //日动作次数
+				addProperty(p, ycid, "D_ACT", true);
+				
+				ycid = rSet.getString("ACTIONCOUNTTOTALYCID"); //总动作次数
+				addProperty(p, ycid, "T_ACT", true);
+				tf.prop = tf.property;
 			}						
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			zjxt_msg.showwarn("Init_Property->"+e.toString()+" id:"+eid);
 		}
 	}
-	
 	public static void Init_TyqProperty()throws Exception{
 		try {
 			zjxt_msg.show("初始化调压器量测...");
 			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
 			Statement stat = connection.createStatement();
-			String sql = "SELECT t2.* FROM tblelement t1 inner join tblfeedvoltageregulatormeasure t2 on t1.id=t2.id";
+			String sql = "SELECT t2.* FROM tblfeedvoltageregulatormeasure t2";
 			ResultSet rSet = stat.executeQuery(sql);
 			while(rSet.next()){
 				String eid = rSet.getString("ID");
 				zVoltageRegulator tyq = (zVoltageRegulator)zjxt_CimBuild.GetById(eid);
 				if(tyq == null) continue;
 				Mapping(rSet, tyq.property);
-				tyq.prop = tyq.property;
-				String ycid = rSet.getString("OutputUabYCID");
-				addproperty_tyq(tyq, ycid, "OutputUab");
-				tyq.U = tyq.property.getyc("OUTPUTUABYCID");
-				
-				ycid = rSet.getString("InputUabYCID");
-				addproperty_tyq(tyq, ycid, "InputUab");
-				
-				String yxid = rSet.getString("FLOWDIRECTIONYXID");
-				addproperty_yx_tyq(tyq, yxid, "FlowDirection");
-				
-//				ycid = rSet.getString("TAPYCID");
-				
-				tyq.parentId = topo.zNodeList.get(tyq.getMrID()).parentId;
-				tyq.Id = tyq.getMrID();
+				tyq.prop = tyq.property;			
+				tyq.parentId = topo.zNodeList.get(eid).parentId;
+				tyq.Id = eid;
 //				for(int i=0; i<nodes.size(); i++) {
 //					if(nodes.get(i).Id.equals(eid)) {
 //						nodes.get(i).prop = tyq.property;
@@ -1125,219 +1168,220 @@ public class zjxt_Initialize {
 //						tyq.parentid = nodes.get(i).parentId;
 //					}
 //				}
-				addproperty_tyq(tyq, ycid, "tap");
+				
 				
 			}						
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			zjxt_msg.showwarn("Init_Property->", e);
+			zjxt_msg.showwarn("Init_TyqProperty->", e);
 		}
 	}
 	
-	public static void Init_ApfProperty()throws Exception {
-		try {
-			zjxt_msg.show("初始化APF量测...");
-			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
-			Statement stat = connection.createStatement();
-			String sql = "SELECT * FROM tblfeedapfmeasure";
-			ResultSet rSet = stat.executeQuery(sql);
-			while(rSet.next()){
-				String eid = rSet.getString("ID");
-				zApf apf = (zApf)zjxt_CimBuild.GetById(eid);
-				if(apf == null) continue;
-				apf.parentId = topo.zNodeList.get(apf.getMrID()).parentId;
-				apf.Id = apf.getMrID();
-//				for(int i=0; i<nodes.size(); i++) {
-//					if(nodes.get(i).Id.equals(eid)) {
-//						nodes.get(i).prop = apf.property;
-//						apf.node = nodes.get(i);
-//						apf.Id = nodes.get(i).Id;
-//						apf.parentid = nodes.get(i).parentId;
-//						
-//					}
-//				}
-				Mapping(rSet, apf.property);
-				apf.prop = apf.property;
-				String ycid = rSet.getString("UYCID");
-				addproperty_apf(apf, ycid, "UYCID");
-				apf.U = apf.property.getyc("UYCID");
-				apf.P = apf.property.getyc("PYCID");
-				apf.Q = apf.property.getyc("QYCID");
-				ycid = rSet.getString("IYCID");
-				addproperty_apf(apf, ycid, "IYCID");
-				
-				ycid = rSet.getString("PYCID");
-				addproperty_apf(apf, ycid, "PYCID");
-				
-				ycid = rSet.getString("QYCID");
-				addproperty_apf(apf, ycid, "QYCID");
-				
-				ycid = rSet.getString("PFYCID");
-				addproperty_apf(apf, ycid, "PFYCID");
-				
-				ycid = rSet.getString("THDUYCID");
-				addproperty_apf(apf, ycid, "THDUYCID");
-				
-				ycid = rSet.getString("THDIYCID");
-				addproperty_apf(apf, ycid, "THDIYCID");
-				
-				ycid = rSet.getString("QCYCID");
-				addproperty_apf(apf, ycid, "QCYCID");
-				
-				ycid = rSet.getString("CONSERVATIONYCID");
-				addproperty_apf(apf, ycid, "CONSERVATIONYCID");
-				
-				String yxid = rSet.getString("GUARDSIGNALYXID");
-				
-				
-//				for(int i=0; i<nodes.size(); i++) {
-//					if(nodes.get(i).Id.equals(eid)) {
-//						nodes.get(i).prop = apf.property;
-//						apf.node = nodes.get(i);
-//					}
-//				}
-				
-				addproperty_yx_apf(apf, yxid, "GUARDSIGNALYXID");
-				
-			}						
-		} catch (Exception e) {
-			zjxt_msg.showwarn("Init_Property->", e);
-		}
-	}
+//	public static void Init_ApfProperty()throws Exception {
+//		try {
+//			zjxt_msg.show("初始化APF量测...");
+//			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
+//			Statement stat = connection.createStatement();
+//			String sql = "SELECT * FROM tblfeedapfmeasure";
+//			ResultSet rSet = stat.executeQuery(sql);
+//			while(rSet.next()){
+//				String eid = rSet.getString("ID");
+//				zApf apf = (zApf)zjxt_CimBuild.GetById(eid);
+//				if(apf == null) continue;
+//				apf.parentId = topo.zNodeList.get(apf.getMrID()).parentId;
+//				apf.Id = apf.getMrID();
+////				for(int i=0; i<nodes.size(); i++) {
+////					if(nodes.get(i).Id.equals(eid)) {
+////						nodes.get(i).prop = apf.property;
+////						apf.node = nodes.get(i);
+////						apf.Id = nodes.get(i).Id;
+////						apf.parentid = nodes.get(i).parentId;
+////						
+////					}
+////				}
+//				Mapping(rSet, apf.property);
+//				apf.prop = apf.property;
+//				String ycid = rSet.getString("UYCID");
+//				addproperty_apf(apf, ycid, "UYCID");
+//				apf.U = apf.property.getyc("UYCID");
+//				apf.P = apf.property.getyc("PYCID");
+//				apf.Q = apf.property.getyc("QYCID");
+//				ycid = rSet.getString("IYCID");
+//				addproperty_apf(apf, ycid, "IYCID");
+//				
+//				ycid = rSet.getString("PYCID");
+//				addproperty_apf(apf, ycid, "PYCID");
+//				
+//				ycid = rSet.getString("QYCID");
+//				addproperty_apf(apf, ycid, "QYCID");
+//				
+//				ycid = rSet.getString("PFYCID");
+//				addproperty_apf(apf, ycid, "PFYCID");
+//				
+//				ycid = rSet.getString("THDUYCID");
+//				addproperty_apf(apf, ycid, "THDUYCID");
+//				
+//				ycid = rSet.getString("THDIYCID");
+//				addproperty_apf(apf, ycid, "THDIYCID");
+//				
+//				ycid = rSet.getString("QCYCID");
+//				addproperty_apf(apf, ycid, "QCYCID");
+//				
+//				ycid = rSet.getString("CONSERVATIONYCID");
+//				addproperty_apf(apf, ycid, "CONSERVATIONYCID");
+//				
+//				String yxid = rSet.getString("GUARDSIGNALYXID");
+//				
+//				
+////				for(int i=0; i<nodes.size(); i++) {
+////					if(nodes.get(i).Id.equals(eid)) {
+////						nodes.get(i).prop = apf.property;
+////						apf.node = nodes.get(i);
+////					}
+////				}
+//				
+//				addproperty_yx_apf(apf, yxid, "GUARDSIGNALYXID");
+//				
+//			}						
+//		} catch (Exception e) {
+//			zjxt_msg.showwarn("Init_Property->", e);
+//		}
+//	}
 	
-	public static void Init_balanceProperty()throws Exception {
-		try {
-			zjxt_msg.show("初始化三相不平衡量测...");
-			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
-			Statement stat = connection.createStatement();
-			String sql = "SELECT * FROM tblfeedtpunbalancemeasure";
-			ResultSet rSet = stat.executeQuery(sql);
-			while(rSet.next()){
-				String eid = rSet.getString("ID");
-				zTpunbalance balance = (zTpunbalance)zjxt_CimBuild.GetById(eid);
-				if(balance == null) continue;
-				balance.parentId = topo.zNodeList.get(balance.getMrID()).parentId;
-				balance.Id = balance.getMrID();
-//				for(int i=0; i<nodes.size(); i++) {
-//					if(nodes.get(i).Id.equals(eid)) {
-//						nodes.get(i).prop = balance.property;
-//						balance.node = nodes.get(i);
-//						balance.Id = nodes.get(i).Id;
-//						balance.parentid = nodes.get(i).parentId;
-//						
-//					}
-//				}
-				
-				Mapping(rSet, balance.property);
-				balance.prop = balance.property;
-				String ycid = rSet.getString("UYCID");
-				addproperty_balance(balance, ycid, "UYCID");
-				balance.U = balance.property.getyc("UYCID");
-				balance.P = balance.property.getyc("PYCID");
-				balance.Q = balance.property.getyc("QYCID");
-				
-				
-				ycid = rSet.getString("IYCID");
-				addproperty_balance(balance, ycid, "IYCID");
-				
-				ycid = rSet.getString("PYCID");
-				addproperty_balance(balance, ycid, "PYCID");
-				
-				ycid = rSet.getString("QYCID");
-				addproperty_balance(balance, ycid, "QYCID");
-				
-				ycid = rSet.getString("PFYCID");
-				addproperty_balance(balance, ycid, "PFYCID");
-				
-				ycid = rSet.getString("SXBPHDYCID");
-				addproperty_balance(balance, ycid, "SXBPHDYCID");
-				
-				ycid = rSet.getString("CONSERVATIONYCID");
-				addproperty_balance(balance, ycid, "CONSERVATIONYCID");
-				
-				String yxid = rSet.getString("GUARDSIGNALYXID");
-				
-				
-//				for(int i=0; i<nodes.size(); i++) {
-//					if(nodes.get(i).Id.equals(eid)) {
-//						nodes.get(i).prop = balance.property;
-//						balance.node = nodes.get(i);
-//					}
-//				}
-				addproperty_yx_balance(balance, yxid, "GUARDSIGNALYXID");
-			}						
-		} catch (Exception e) {
-			zjxt_msg.showwarn("Init_Property->", e);
-		}
-	}
+//	public static void Init_balanceProperty()throws Exception {
+//		try {
+//			zjxt_msg.show("初始化三相不平衡量测...");
+//			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
+//			Statement stat = connection.createStatement();
+//			String sql = "SELECT * FROM tblfeedtpunbalancemeasure";
+//			ResultSet rSet = stat.executeQuery(sql);
+//			while(rSet.next()){
+//				String eid = rSet.getString("ID");
+//				zTpunbalance balance = (zTpunbalance)zjxt_CimBuild.GetById(eid);
+//				if(balance == null) continue;
+//				balance.parentId = topo.zNodeList.get(balance.getMrID()).parentId;
+//				balance.Id = balance.getMrID();
+////				for(int i=0; i<nodes.size(); i++) {
+////					if(nodes.get(i).Id.equals(eid)) {
+////						nodes.get(i).prop = balance.property;
+////						balance.node = nodes.get(i);
+////						balance.Id = nodes.get(i).Id;
+////						balance.parentid = nodes.get(i).parentId;
+////						
+////					}
+////				}
+//				
+//				Mapping(rSet, balance.property);
+//				balance.prop = balance.property;
+//				String ycid = rSet.getString("UYCID");
+//				addproperty_balance(balance, ycid, "UYCID");
+//				balance.U = balance.property.getyc("UYCID");
+//				balance.P = balance.property.getyc("PYCID");
+//				balance.Q = balance.property.getyc("QYCID");
+//				
+//				
+//				ycid = rSet.getString("IYCID");
+//				addproperty_balance(balance, ycid, "IYCID");
+//				
+//				ycid = rSet.getString("PYCID");
+//				addproperty_balance(balance, ycid, "PYCID");
+//				
+//				ycid = rSet.getString("QYCID");
+//				addproperty_balance(balance, ycid, "QYCID");
+//				
+//				ycid = rSet.getString("PFYCID");
+//				addproperty_balance(balance, ycid, "PFYCID");
+//				
+//				ycid = rSet.getString("SXBPHDYCID");
+//				addproperty_balance(balance, ycid, "SXBPHDYCID");
+//				
+//				ycid = rSet.getString("CONSERVATIONYCID");
+//				addproperty_balance(balance, ycid, "CONSERVATIONYCID");
+//				
+//				String yxid = rSet.getString("GUARDSIGNALYXID");
+//				
+//				
+////				for(int i=0; i<nodes.size(); i++) {
+////					if(nodes.get(i).Id.equals(eid)) {
+////						nodes.get(i).prop = balance.property;
+////						balance.node = nodes.get(i);
+////					}
+////				}
+//				addproperty_yx_balance(balance, yxid, "GUARDSIGNALYXID");
+//			}						
+//		} catch (Exception e) {
+//			zjxt_msg.showwarn("Init_Property->", e);
+//		}
+//	}
 	
-	public static void Init_SvgProperty()throws Exception {
-		try {
-			zjxt_msg.show("初始化SVG量测...");
-			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
-			Statement stat = connection.createStatement();
-			String sql = "SELECT * FROM tblfeedsvgmeasure";
-			ResultSet rSet = stat.executeQuery(sql);
-			while(rSet.next()){
-				String eid = rSet.getString("ID");
-				zSVG svg = (zSVG)zjxt_CimBuild.GetById(eid);
-				if(svg == null) continue;
-				svg.parentId = topo.zNodeList.get(svg.getMrID()).parentId;
-				svg.Id = svg.getMrID();
-//				for(int i=0; i<nodes.size(); i++) {
-//					if(nodes.get(i).Id.equals(eid)) {
-//						nodes.get(i).prop = svg.property;
-//						svg.node = nodes.get(i);
-//						svg.Id = nodes.get(i).Id;
-//						svg.parentid = nodes.get(i).parentId;
-//					}
-//				}
-				
-				Mapping(rSet, svg.property);
-				svg.prop = svg.property;
-				String ycid = rSet.getString("UYCID");
-				addproperty_svg(svg, ycid, "UYCID");
-				svg.U = svg.property.getyc("UYCID");
-				svg.P = svg.property.getyc("PYCID");
-				svg.Q = svg.property.getyc("QYCID");
-				
-				ycid = rSet.getString("IYCID");
-				addproperty_svg(svg, ycid, "IYCID");
-				
-				ycid = rSet.getString("PYCID");
-				addproperty_svg(svg, ycid, "PYCID");
-				
-				ycid = rSet.getString("QYCID");
-				addproperty_svg(svg, ycid, "QYCID");
-				
-				ycid = rSet.getString("PFYCID");
-				addproperty_svg(svg, ycid, "PFYCID");
-				
-				ycid = rSet.getString("QCYCID");
-				addproperty_svg(svg, ycid, "QCYCID");
-				
-				ycid = rSet.getString("CONSERVATIONYCID");
-				addproperty_svg(svg, ycid, "CONSERVATIONYCID");
-				
-				String yxid = rSet.getString("GUARDSIGNALYXID");
-				
-				
-//				for(int i=0; i<nodes.size(); i++) {
-//					if(nodes.get(i).Id.equals(eid)) {
-//						nodes.get(i).prop = svg.property;
-//						svg.node = nodes.get(i);
-//					}
-//				}
-				addproperty_svg(svg, yxid, "GUARDSIGNALYXID");
-				
-			}			
-			connection.close();
-		} catch (Exception e) {
-			zjxt_msg.showwarn("Init_Property->", e);
-		}
-	}
+//	public static void Init_SvgProperty()throws Exception {
+//		try {
+//			zjxt_msg.show("初始化SVG量测...");
+//			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
+//			Statement stat = connection.createStatement();
+//			String sql = "SELECT * FROM tblfeedsvgmeasure";
+//			ResultSet rSet = stat.executeQuery(sql);
+//			while(rSet.next()){
+//				String eid = rSet.getString("ID");
+//				zSVG svg = (zSVG)zjxt_CimBuild.GetById(eid);
+//				if(svg == null) continue;
+//				svg.parentId = topo.zNodeList.get(svg.getMrID()).parentId;
+//				svg.Id = svg.getMrID();
+////				for(int i=0; i<nodes.size(); i++) {
+////					if(nodes.get(i).Id.equals(eid)) {
+////						nodes.get(i).prop = svg.property;
+////						svg.node = nodes.get(i);
+////						svg.Id = nodes.get(i).Id;
+////						svg.parentid = nodes.get(i).parentId;
+////					}
+////				}
+//				
+//				Mapping(rSet, svg.property);
+//				svg.prop = svg.property;
+//				String ycid = rSet.getString("UYCID");
+//				addproperty_svg(svg, ycid, "UYCID");
+//				svg.U = svg.property.getyc("UYCID");
+//				svg.P = svg.property.getyc("PYCID");
+//				svg.Q = svg.property.getyc("QYCID");
+//				
+//				ycid = rSet.getString("IYCID");
+//				addproperty_svg(svg, ycid, "IYCID");
+//				
+//				ycid = rSet.getString("PYCID");
+//				addproperty_svg(svg, ycid, "PYCID");
+//				
+//				ycid = rSet.getString("QYCID");
+//				addproperty_svg(svg, ycid, "QYCID");
+//				
+//				ycid = rSet.getString("PFYCID");
+//				addproperty_svg(svg, ycid, "PFYCID");
+//				
+//				ycid = rSet.getString("QCYCID");
+//				addproperty_svg(svg, ycid, "QCYCID");
+//				
+//				ycid = rSet.getString("CONSERVATIONYCID");
+//				addproperty_svg(svg, ycid, "CONSERVATIONYCID");
+//				
+//				String yxid = rSet.getString("GUARDSIGNALYXID");
+//				
+//				
+////				for(int i=0; i<nodes.size(); i++) {
+////					if(nodes.get(i).Id.equals(eid)) {
+////						nodes.get(i).prop = svg.property;
+////						svg.node = nodes.get(i);
+////					}
+////				}
+//				addproperty_svg(svg, yxid, "GUARDSIGNALYXID");
+//				
+//			}			
+//			connection.close();
+//		} catch (Exception e) {
+//			zjxt_msg.showwarn("Init_Property->", e);
+//		}
+//	}
 	
 	//Mapping函数：数据库实体映射到drools规则文件，使规则文件可以访问实体表的各字段。
+	
 	public static void Mapping(ResultSet resultSet,PowerSystemResource psr){
 		try {
 			ResultSetMetaData resultMeta = resultSet.getMetaData();
@@ -1399,7 +1443,7 @@ public class zjxt_Initialize {
 				String eid = rSet.getString("ID");
 				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(eid);  
 				if(comp == null){
-					zjxt_msg.show("Init_CompProperty->电容参数初始化失败! ID:"+eid);
+					zjxt_msg.showwarn("Init_CompProperty->电容参数初始化失败! ID:"+eid);
 					continue;
 				}
 				comp.controlParam.cosCtrlModycval = rSet.getInt("cosCtrlModycval");
@@ -1432,75 +1476,15 @@ public class zjxt_Initialize {
 		}
 	}
 	
-	public static void Init_CompProperty()throws Exception{
-		try {
-			zjxt_msg.show("初始化配电电容器量测...");
-			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
-			Statement stat = connection.createStatement();
-			String sql = "select t.*,c.name,c.schemeid from tblfeedcapacitormeasure t inner join tblfeedcapacitor c on t.id=c.id";
-			ResultSet rSet = stat.executeQuery(sql);
-			while(rSet.next()){
-				String eid = rSet.getString("ID");
-				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(eid);  
-				if(comp == null){
-					zjxt_msg.show("Init_CompProperty->电容量测初始化失败! ID:"+eid);
-					continue;
-				}
-				comp.SCHEMEID =  rSet.getString("SCHEMEID");
-				comp.SWITCHID = rSet.getString("SWITCHYXID");
-				
-				
-				comp.parentId = topo.zNodeList.get(comp.getMrID()).parentId;
-//				for(int i=0; i<nodes.size(); i++) {
-//					if(nodes.get(i).Id.equals(eid)) {
-//						nodes.get(i).prop = comp.property;
-//						comp.node = nodes.get(i);
-//						comp.Id = nodes.get(i).Id;
-//						comp.parentid = nodes.get(i).parentId;
-//						
-//					}
-//				}
-				comp.Id = comp.getMrID();
-				Mapping(rSet, comp.property);
-				comp.U = comp.property.getyc("UYCID");
-//				comp.P = comp.property.getyc("PYCID");
-				comp.Q = comp.property.getyc("QYCID");
-				comp.prop = comp.property;
-			}	
-			
-			zjxt_msg.show("初始化配电电容器子组量测...");
-			sql = "SELECT t.*,c.FEEDCAPACITORID FROM tblfeedcapacitoritemmeasure t INNER JOIN tblfeedcapacitoritem c ON t.id=c.id";
-			rSet = stat.executeQuery(sql);
-			while(rSet.next()) {
-				String eid = rSet.getString("ID");
-				String parentId = rSet.getString("FEEDCAPACITORID");
-				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(parentId);  
-				if(comp == null) {
-					zjxt_msg.show("Init_CompProperty->电容子组量测初始化失败! 找不到FEEDCAPACITORID:"+parentId);
-					continue;
-				}
-				Mapping(rSet, comp.property);
-				comp.prop = comp.property;
-//				comp.SCHEMEID =  rSet.getString("SCHEMEID");
-				for(zCompensator c:comp.UnitList) {
-					if(c.Id.equals(eid)) {
-						comp.SWITCHID = rSet.getString("SWITCHYXID");
-					}
-				}
-			}	
-			
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			zjxt_msg.showwarn("Init_CompItemProperty->", e);
-		}
-	}
+	
 
-	public static void Init_TransformerProperty()throws Exception{
+
+		public static void Init_TransformerProperty()throws Exception{
 		try {
 			zjxt_msg.show("初始化配变量测...");
 			Connection connection = zjxt_ConnectionPool.Instance().getConnection();
 			Statement stat = connection.createStatement();
-			String sql = "SELECT T3.* FROM TBLELEMENT T1 INNER JOIN TBLFEEDTRANS T2 ON T1.ID=T2.ID "
+			String sql = "SELECT T3.* FROM TBLFEEDTRANS T2 "
 					+ "INNER JOIN TBLFEEDTRANSMEASURE T3 ON T2.ID=T3.ID "
 					+ "where t2.ISONLOADTAPCHANGER =1";  //where t2.ISOLTC =1; “ISOLTC 是否有载调压变”字段解释存疑 debug 2017-4-4
 			ResultSet rSet = stat.executeQuery(sql);

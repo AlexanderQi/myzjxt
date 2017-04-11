@@ -233,8 +233,8 @@ public class zjxt_kernel {
 					}
 				}
 				
-				mlog.warn("Calculate rules...\r\n");
-				zjxt_CimBuild.loadX(); //加载电抗
+				
+				//zjxt_CimBuild.loadX(); //加载电抗
 				if(zjxt_kernel.jkParam.isJudgeDeadData)
 				{
 					zjxt_CimBuild.checkDeadData(); //判断死数据
@@ -242,6 +242,7 @@ public class zjxt_kernel {
 				zjxt_CimBuild.refreshNodeMesure();
 				zjxt_CimBuild.list.clear();
 //				zjxt_CimBuild.list.add(zjxt_CimBuild.cbList);
+				mlog.warn("Calculate rules...\r\n");
 				ks.execute(zjxt_CimBuild.cbList);
 			} catch (Throwable t) {
 				if(!"退出循环".equals(t.getCause().getMessage()))
