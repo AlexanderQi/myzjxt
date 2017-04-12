@@ -1069,8 +1069,8 @@ public class zjxt_Initialize {
 				comp.parentId = topo.zNodeList.get(eid).parentId;
 				comp.Id = eid;
 				Mapping(rSet, comp.property);
-				comp.U = comp.property.getyc("UYCID");
-				comp.Q = comp.property.getyc("QYCID");
+				//comp.U = comp.property.getyc("UYCID");
+				//comp.Q = comp.property.getyc("QYCID");
 			}	
 			
 			zjxt_msg.show("初始化配电电容器子组量测...");

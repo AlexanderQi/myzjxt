@@ -528,9 +528,9 @@ public class zjxt_Property {
 			LockedInfo = zjxt_State.GetLockState(elementId);
 			if (LockedInfo.equals(""))
 				return false;
-			else
-				zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
-						+ " 闭锁信息->" + LockedInfo);
+//			else
+//				zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
+//						+ " 闭锁信息->" + LockedInfo);
 		} catch (Exception e) {
 			zjxt_msg.showwarn(e.toString());
 		}
@@ -548,14 +548,6 @@ public class zjxt_Property {
 	}
 
 	public String ProtectInfo = "";
-
-	/**
-	 * 
-	 * @Title: protectAlarm
-	 * @Description: 保护信息告警
-	 * @author: lixu
-	 * @throws Exception 
-	 */
 	public void protectAlarm(String info, String type) throws Exception {
 		zjxt_Cmd.SendAdvice(Owner.getMrID(), zjxt_ProtectionTable.PROTECT_INFO, type, info);
 	}
@@ -566,9 +558,9 @@ public class zjxt_Property {
 			ProtectInfo = zjxt_ProtectionTable.GetProtection(elementId);
 			if (ProtectInfo.equals(""))
 				return false;
-			else
-				zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
-						+ " 保护信息->" + LockedInfo);
+//			else
+//				zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
+//						+ " 保护信息->" + LockedInfo);
 		} catch (Exception e) {
 			zjxt_msg.showwarn(e.toString());
 		}

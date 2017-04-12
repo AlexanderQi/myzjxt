@@ -68,7 +68,7 @@ rule "feederLine"
         	String eid = equi.getMrID();
 	    	//zFeederLine line = null;
 	    	zjxt_Property propPer = equi.prop;
-	    	int vlid = equi.vlid; //电压等级ID
+	    	int vlid = equi.vlid; //电压铭牌数据
 	    	//VoltageLevel voltage = equi.voltage;
 	    	//zjxt_msg.show("{} 电压等级:{}", equiName, vlid);
 	    	boolean bool = false;
@@ -111,15 +111,15 @@ rule "feederLine"
         zjxt_msg.show("馈线【{}】当前电压合格率:{}%", feederName,String.format("%.2f", volRate * 100));
         zjxt_msg.show("馈线【{}】越电压上限数量:{} 越下限数量:{}", feederName,overUp, overLo);
         if(volRate >= 0.99){
-        	zjxt_msg.show("电压均正常，计算无功设备功率因数合格率，开始无功优化...");
+        	zjxt_msg.show("本馈线综合电压合格率正常，将逐步调节设备为功率因数优先模式.");
         	return;
         }else{
         	size = equipments.size();
         	for(int i=0; i<size; i++) {
         		Equipment eq = (Equipment)equipments.get(i);
-        		//String equiName = eq.getName();
+        		
         		//String eid = eq.getMrID();
-				
+								
 				checkU(eq,volRate,overUp,overLo);
 	    	}
     	}
@@ -212,7 +212,7 @@ function boolean handleLimitUp(Equipment eq) {
 * 电压越下限
 */
 function boolean handleLimitLo(Equipment eq) {
-		if(!canOfforDown(eq)) {
+		if(!canOnorUp(eq)) {
 			eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,无调节手段!");
 			return false;
 		} else {
@@ -400,14 +400,30 @@ function double getTargetPF(Equipment e, double ΔQc) {
  **/
 function boolean canOfforDown(Equipment e) {
 	//String cs = e.prop.CanControl();
-	boolean canControl = e.line.isCanControl() && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && !e.prop.IsProtected() && (e.currentStep>e.lowStep);
+	String cs = e.controlState;
+	boolean isLocked = e.prop.IsLocked();
+	boolean isProtected = e.prop.IsProtected();
+	boolean isMeasureError = e.isMeasureError;
+	String equiName = e.getName();
+	zjxt_msg.show("【{}】控制状态:{} 量测是否异常:{}",equiName,cs,isMeasureError);
+	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator)
+		zjxt_msg.show("【{}】需降档,当前档位:{} 最低档位:{}",equiName,e.currentStep,e.lowStep);
+	if(e instanceof zCompensator)
+		zjxt_msg.show("【{}】当前工作模式:{}", equiName,e.workMode);
+	if(isLocked)
+		zjxt_msg.show("【{}】{}", equiName,e.prop.LockedInfo);
+	if(isProtected)
+		zjxt_msg.show("【{}】{}", equiName,e.prop.ProtectInfo);	
+
+	boolean canControl = e.line.isCanControl() && !cs.equals(zjxt_State.cs_bucanyu) && !isLocked && !isProtected;//&& (e.currentStep>e.lowStep)
+
 	/*
 	if(e instanceof zSVG ||
 		e instanceof zApf ||
 		e instanceof zTpunbalance) {
 		canControl = e.line.isCanControl() && e.isMeasureError == false && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && (e.Qc>e.minratedCapacity || e.currentStep>e.lowStep);
 	}*/
-	//zjxt_msg.show("控制状态:" + canControl);
+	
 	return canControl;
 }
 
@@ -421,7 +437,24 @@ function boolean canOnorUp(Equipment e) {
 	boolean isLock = e.prop.IsLocked();
 	zjxt_msg.show("闭锁" + isLock);
 	*/
-	return e.line.isCanControl() && !e.isMeasureError && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && (e.currentStep<e.highStep);
+	String cs = e.controlState;
+	boolean isLocked = e.prop.IsLocked();
+	boolean isProtected = e.prop.IsProtected();
+	boolean isMeasureError = e.isMeasureError;
+	String equiName = e.getName();
+	
+	zjxt_msg.show("【{}】控制状态:{} 量测是否异常:{}", equiName,cs,isMeasureError);
+
+	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator)
+		zjxt_msg.show("【{}】需升档,当前档位:{} 最高档位:{}", equiName,e.currentStep,e.highStep);
+				
+	if(e instanceof zCompensator)
+		zjxt_msg.show("【{}】当前工作模式:{}", equiName,e.workMode);
+	if(isLocked)
+		zjxt_msg.show("【{}】{}", equiName,e.prop.LockedInfo);
+	if(isProtected)
+		zjxt_msg.show("【{}】{}", equiName,e.prop.ProtectInfo);	
+	return e.line.isCanControl() && !e.isMeasureError && !cs.equals(zjxt_State.cs_bucanyu) && !isLocked && !isProtected ;//&&(e.currentStep<e.highStep)
 }
 
 function String round(double value) {
@@ -575,7 +608,7 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 	}else{
 		zjxt_msg.show("节点【{}】 没有上级节点",eq.getName());
 	}*/
-				
+			
 	if(e.U > e.limit.upup) { //电压越上限
 		zjxt_msg.show("节点【{}】当前电压越考核上限, U：{}V, 考核上限：{}V", e.getName(), e.U, e.limit.upup);
 		boolean ret =  handleLimitUp(e);  //本级处理
@@ -585,13 +618,17 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 			if(parent instanceof zFeederLine) return; //上级是纯管理单位也没办法了
 			if(volRate > 0.8){
 				String sv = String.format("%.2f", volRate * 100);
-				zjxt_msg.show("上级节点:【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
+				zjxt_msg.show("上级节点【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
 			 	return;  //本馈线电压合格率大于80%,不会动上级.
 			}
-			if(overUp > overLo)
+			if(overUp > overLo) //馈线上的设备越上限数量大于越下限数量,才可以要求上级处理越上限情况.
+			{
+				//预算上级设备动作后的馈线电压合格率.
+				
 			 	handleLimitUp((Equipment)parent);  //找上级处理
-			else
-				zjxt_msg.show("上级节点:【{}】拒绝动作,判断当前馈线越下限数量多于越上限数量,不能进行降压处理.",parent.getName());
+			
+			}else
+				zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越下限数量多于越上限数量,不能进行降压处理.",parent.getName());
 		} 
 	} else if(e.U < e.limit.lolo) { //电压越下限
 		zjxt_msg.show("节点【{}】当前电压越考核下限, U：{}V, 考核下限：{}V", e.getName(), e.U, e.limit.lolo);
@@ -602,13 +639,13 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 			if(parent instanceof zFeederLine) return; 
 			if(volRate > 0.8){
 				String sv =String.format("%.2f", volRate * 100);
-				zjxt_msg.show("上级节点:【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
+				zjxt_msg.show("上级节点【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
 			 	return;  //本馈线电压合格率大于80%,不会动上级.
 			}
 			if(overLo >= overUp)
 				handleLimitLo((Equipment)parent);
 			else
-			  zjxt_msg.show("上级节点:【{}】拒绝动作,判断当前馈线越上限数量多于越下限数量,不能进行升压处理.",parent.getName());
+			  zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越上限数量多于越下限数量,不能进行升压处理.",parent.getName());
 		}
 	}
 }

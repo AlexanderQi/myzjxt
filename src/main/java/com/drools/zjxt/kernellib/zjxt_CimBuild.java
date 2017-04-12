@@ -1205,7 +1205,7 @@ public class zjxt_CimBuild {
 					p.Q = p.prop.getyc("QYCID");
 					p.workMode = p.prop.getyc("WORKMODEYCID");
 					p.TargetPF = p.prop.getyc("TARGETPFYCID");
-					if(p.PF == 1)
+					if(p.PF >= 1)
 					{
 						if(((zCompensator) p).vlid==10000) {
 							p.P = (float) (Math.sqrt(3)*p.U*p.I*p.PF) / 1000;
@@ -1315,7 +1315,7 @@ public class zjxt_CimBuild {
 				}
 			}
 		} catch(Exception e) {
-			zjxt_msg.showwarn("异常状态:", e);
+			zjxt_msg.showwarn("refreshNodeMesure()->", e);
 		}
 		
 	}
