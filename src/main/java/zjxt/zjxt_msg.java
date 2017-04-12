@@ -119,7 +119,7 @@ public class zjxt_msg {
 			ps.execute(sql);
 			conn.close();
 			
-			sendMsg("zjxt RemoveMsg");
+			sendMsg(5002,"zjxt RemoveMsg");
 		} catch (SQLException e) {
 			zjxt_kernel.mlog.error(e.toString());
 		} catch (Exception e) {
@@ -128,18 +128,19 @@ public class zjxt_msg {
 		}
     }
 	
-	public static synchronized void sendMsg(String msg, Object... args){
+	public static synchronized void sendMsg(int MsgTag,String msg, Object... args){
 		String message = format(msg, args);
 		Connection conn = null;
 		try {
 		    conn = zjxt_ConnectionPool.Instance().getConnection();
 			PreparedStatement ps = null;
 			 String sql = "INSERT INTO TBLMSGLIST (id,sender,receiver,msg,msgtag)"
-					+ "VALUES(0, 'zjxt', 'anyone', ?, 0)";
+					+ "VALUES(0, 'zjxt', 'anyone', ?, ?)";
 			ps = conn.prepareStatement(sql);
 			//java.util.Date date = new java.util.Date();
 			//ps.setTimestamp(1, new Timestamp(date.getTime()));
 			ps.setString(1, message);
+			ps.setInt(2, MsgTag);
 			ps.execute();
 			conn.close();
 		} catch (SQLException e) {
@@ -153,7 +154,7 @@ public class zjxt_msg {
 	}
 	
 	public static synchronized void show(String msg, Object... args){
-		sendMsg(msg,args);
+		sendMsg(0,msg,args);
 		zjxt_kernel.mlog.info(msg, args);
 	}
 	
@@ -163,6 +164,7 @@ public class zjxt_msg {
 	}
 	
 	public static synchronized void showwarn(String msg, Object... args){
+		sendMsg(5001,msg,args);
 		zjxt_kernel.mlog.warn(msg, args);
 	}
 	
