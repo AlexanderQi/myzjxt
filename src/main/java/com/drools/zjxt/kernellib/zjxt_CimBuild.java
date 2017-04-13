@@ -1190,7 +1190,7 @@ public class zjxt_CimBuild {
 //							p.X  = XMap.get(p.getMrID());
 //						}
 //					}
-					p.stepvoltageincrement = ((zVoltageRegulator)p).stepvoltageincrement;
+//					p.stepvoltageincrement = ((zVoltageRegulator)p).stepvoltageincrement;
 					p.kind = CommonListCode.VOLTAGE_KIND;
 					
 				} else if(p instanceof zCompensator) {
@@ -1216,7 +1216,7 @@ public class zjxt_CimBuild {
 						p.P = (float) (p.Q / Math.tan(Math.acos(p.PF)));
 					}
 					
-					p.capacity = (Double) p.get("RATEDCAPACITY");
+//					p.capacity = (Double) p.get("RATEDCAPACITY");
 //					if(XMap.get(p.getMrID()) != null) {
 //						if(XMap.get(p.getMrID())!=0.0f) {
 //							p.X  = XMap.get(p.getMrID());
@@ -1263,7 +1263,7 @@ public class zjxt_CimBuild {
 					p.Q = p.prop.getyc("QYCID");
 					p.loadFactor = Math.sqrt(Math.pow(p.P, 2)+Math.pow(p.Q, 2)) /p.capacity;
 					p.currentStep = (int)p.prop.getyc("TAPCHANGERYCID");
-					p.stepvoltageincrement = ((zTransformerFormer)p).stepvoltageincrement;
+//					p.stepvoltageincrement = ((zTransformerFormer)p).stepvoltageincrement;
 //					if(XMap.get(p.getMrID()) != null) {
 //						if(XMap.get(p.getMrID())!=0.0f) {
 //							p.X  = XMap.get(p.getMrID());
@@ -1578,7 +1578,7 @@ public class zjxt_CimBuild {
 				if("0.38kv".equals(voltage.getName())) { //低压
 					if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 				    		e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {
-				    		e.prop.SetAlarm("{}当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
 				    		return true;
@@ -1589,7 +1589,7 @@ public class zjxt_CimBuild {
 				} else {
 					if(e.U>voltage.getHighVoltageLimit() ||
 				    		e.U<voltage.getLowVoltageLimit()) {
-				    		e.prop.SetAlarm("{}当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
 				    		return true;
@@ -1621,7 +1621,7 @@ public class zjxt_CimBuild {
 	    				}
 	    				tmp = Math.abs(e.Q/(3*e.U*e.I*Math.sqrt(1-Math.pow(e.PF, 2))) * 1000);
 	    			}
-	    			zjxt_msg.show("验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", String.format("%.2f", tmp));
+	    			zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", e.getName(),String.format("%.2f", tmp));
 	    			if(0.8>=tmp || tmp>=1.2) {
 	    				//e.prop.SetAlarm("{}当前无功:{}kVar,功率因数:{},与当前电压{}V、电流{}A不对应!", e.getName(), e.Q, e.PF, e.U, e.I);
 	    				e.isMeasureError = true;
@@ -1631,7 +1631,7 @@ public class zjxt_CimBuild {
 	    	} else if(e instanceof zTransformerFormer) {
 	    		if(e.U>250 ||
 		    		e.U<180) {
-		    		e.prop.SetAlarm("{}当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+		    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
 		    		e.isMeasureError = true;
 		    		e.isVolError = true;
 		    		return true;
@@ -1644,12 +1644,12 @@ public class zjxt_CimBuild {
 	    	} else {
 	    		if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 	    			e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {  
-	    			e.prop.SetAlarm("{}当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+	    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
 	    			e.isMeasureError = true;
 		    		return e.isVolError;
 	    		}
 	    		double tmp = Math.abs(e.Q/(3*e.U*e.I/1000)/Math.sqrt(1-Math.pow(e.PF, 2)));
-	    		zjxt_msg.show("验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", String.format("%.2f", tmp));
+	    		zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", e.getName(), String.format("%.2f", tmp));
 	    		if(tmp<=0.8 || tmp>=1.2) {
 	    			//e.prop.SetAlarm("{}当前无功:{}kVar,功率因数:{}V,与当前电压{}V、电；流{}A不对应！", e.getName(), e.Q, e.PF, e.U, e.I);
 	    			e.isMeasureError = true;

@@ -175,6 +175,62 @@ rule "feederLine"
     	zjxt_msg.show("***************************馈线【{}】End**************************", feederLine.getName());
 end
 
+//预算算设备组综合电压合格率 
+function float getPassRate(List equipments,float VolChangeRate, boolean showlog){
+	int size = equipments.size();
+    int volMeaErrSize = 0;
+    int qualifiedSize = 0;
+    for(int i=0; i<size; i++) {
+    	Equipment equi = (Equipment)equipments.get(i);
+    	String name = equi.getName();
+    	//zjxt_msg.show("节点名称:【{}】", equiName);
+    	String id = equi.getMrID();
+    	//zFeederLine line = null;
+    	//zjxt_Property propPer = equi.prop;
+    	//int vlid = equi.vlid; //电压铭牌数据
+    	//VoltageLevel voltage = equi.voltage;
+    	//zjxt_msg.show("{} 电压等级:{}", equiName, vlid);  	
+    	boolean IsNoRun = equi.controlState.equals(zjxt_State.cs_bucanyu);
+    	boolean bool = false;
+    	if(!IsNoRun) {
+    		bool = zjxt_CimBuild.filterMeasure(equi);
+    		
+	    	if(equi.hasDeadData || bool) {
+	    		if(showlog)
+	    			zjxt_msg.show("【{}】量测异常或有死数据",name);
+	    		volMeaErrSize++;
+	    	}
+    	} else {
+    		volMeaErrSize++;
+    	}
+    	
+    	LimitValue lv = Limit.getLimitInPeriod(id, "电压"); //取限值对象
+		if(lv == null) {
+			if(showlog)
+				zjxt_msg.show("【{}】没有当前时段电压限值!",name);
+			volMeaErrSize++;
+			continue;
+		}
+		equi.limit = lv;
+		float u = equi.U * VolChangeRate;
+		if(showlog)
+			zjxt_msg.show("节点【{}】预算电压：{}V, 本时段上限:{}V,下限:{}V,上上限:{}V,下下限:{}V ", name,u,lv.up,lv.lo,lv.upup,lv.lolo);
+		if(!equi.hasDeadData && !bool&& !IsNoRun) {
+			if(u<=lv.upup && u>=lv.lolo) { //电压
+				qualifiedSize++;
+			}
+		}
+    }//for
+    
+    float volRate = 0f;
+    if(size == volMeaErrSize) {
+    	volRate = 0f;
+    } else {
+    	volRate = (float) qualifiedSize/(size-volMeaErrSize);	
+    }
+	return volRate;
+}
+
 
 //电压越上限
 function boolean handleLimitUp(Equipment eq) {
@@ -608,7 +664,9 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 	}else{
 		zjxt_msg.show("节点【{}】 没有上级节点",eq.getName());
 	}*/
-			
+	String sv = round(volRate * 100);	
+	String ename = e.getName();
+	
 	if(e.U > e.limit.upup) { //电压越上限
 		zjxt_msg.show("节点【{}】当前电压越考核上限, U：{}V, 考核上限：{}V", e.getName(), e.U, e.limit.upup);
 		boolean ret =  handleLimitUp(e);  //本级处理
@@ -616,39 +674,59 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 		{
 			if(parent == null) return; //没上级就没办法了
 			if(parent instanceof zFeederLine) return; //上级是纯管理单位也没办法了
+			if(!(parent instanceof zVoltageRegulator)) return; //上级不是线路调压器也没办法 
+			String pname = parent.getName();	
+			zjxt_msg.show("节点【{}】请求上级节点【{}】降压操作",ename,pname);
 			if(volRate > 0.8){
-				String sv = String.format("%.2f", volRate * 100);
-				zjxt_msg.show("上级节点【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
+				zjxt_msg.show("上级节点【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",pname,sv);
 			 	return;  //本馈线电压合格率大于80%,不会动上级.
 			}
 			if(overUp > overLo) //馈线上的设备越上限数量大于越下限数量,才可以要求上级处理越上限情况.
 			{
-				//预算上级设备动作后的馈线电压合格率.
-				
-			 	handleLimitUp((Equipment)parent);  //找上级处理
-			
+				float uc = (float)parent.stepvoltageincrement; //取调压器变比
+				uc = 1 - uc;  //降压变比.
+				float r = getPassRate(parent.ChildNodes, uc, true);//预算上级设备动作后的馈线电压合格率.				
+				if(r > volRate)
+			 		handleLimitUp((Equipment)parent);  //找上级处理
+			 	else{
+			 		String r_str = round(r * 100);
+			 		zjxt_msg.show("上级节点【{}】拒绝动作,经预算,调压后合格率{}%.低于当前合格率{}%",pname,r_str,sv);
+				}
 			}else
-				zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越下限数量多于越上限数量,不能进行降压处理.",parent.getName());
+				zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越下限数量多于越上限数量,不能进行降压处理.",pname);
 		} 
 	} else if(e.U < e.limit.lolo) { //电压越下限
-		zjxt_msg.show("节点【{}】当前电压越考核下限, U：{}V, 考核下限：{}V", e.getName(), e.U, e.limit.lolo);
+		zjxt_msg.show("节点【{}】当前电压越考核下限, U：{}V, 考核下限：{}V", ename, e.U, e.limit.lolo);
 		boolean ret = handleLimitLo(e);
 		if(!ret) 
 		{
 			if(parent == null) return;
 			if(parent instanceof zFeederLine) return; 
+			if(!(parent instanceof zVoltageRegulator)) return; //上级不是线路调压器也没办法 
+			String pname = parent.getName();	
+			zjxt_msg.show("节点【{}】请求上级节点【{}】升压操作",ename,pname);
 			if(volRate > 0.8){
-				String sv =String.format("%.2f", volRate * 100);
-				zjxt_msg.show("上级节点【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",parent.getName(),sv);
+				zjxt_msg.show("上级节点【{}】不会马上动作,当前馈线电压合格率{}%,当低于80% 时动作.",pname,sv);
 			 	return;  //本馈线电压合格率大于80%,不会动上级.
 			}
-			if(overLo >= overUp)
-				handleLimitLo((Equipment)parent);
+			if(overLo >= overUp){
+				float uc = (float)parent.stepvoltageincrement; //取调压器变比
+				uc = 1 + uc;  //升压变比.
+				float r = getPassRate(parent.ChildNodes, uc, true);//预算上级设备动作后的馈线电压合格率.
+				if(r > volRate)
+			 		handleLimitLo((Equipment)parent);  //找上级处理
+			 	else{
+			 		String r_str = round(r * 100);
+			 		zjxt_msg.show("上级节点【{}】拒绝动作,经预算,调压后合格率{}%.低于当前合格率{}%",pname,r_str,sv);
+				}
+			}
 			else
-			  zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越上限数量多于越下限数量,不能进行升压处理.",parent.getName());
+			  zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越上限数量多于越下限数量,不能进行升压处理.",pname);
 		}
 	}
 }
+
+
 
 /**
 * 根据前后设备动作前后的量测变化计算电抗
@@ -708,6 +786,17 @@ function double caculateUm(Equipment e, boolean isUp) {
 	return ΔUm;
 }
 
+//预算电压
+function double caculateUC(Equipment e){
+	double u_changed = 0;
+	if(e instanceof zTransformerFormer ||
+		e instanceof zVoltageRegulator) {
+		double k = e.stepvoltageincrement;
+		 u_changed = ((1 - 1/(1+k)) + (1/(1-k) - 1))*e.vlid*0.5;
+	}
+	return u_changed; 
+}
+
 /**
 * 调压变、调压器每升一档的电压变化
 **/
@@ -715,12 +804,14 @@ function String caculateU2(Equipment e, boolean isUp) {
 	double U2 = 0;
 	if(e instanceof zTransformerFormer ||
 		e instanceof zVoltageRegulator) {
+		double k = (float)e.stepvoltageincrement;
+		double u_changed = ((1 - 1/(1+k)) + (1/(1-k) - 1))*e.vlid*0.5;
 		if(isUp) {
-			//U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)+e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
-			U2 = e.U*1.15;
+			//U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)+e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);			 
+			U2 = e.U + u_changed;
 		} else {
 			//U2 = e.U *((1+(e.currentStep-5)*e.stepvoltageincrement)-e.stepvoltageincrement)/(1+(e.currentStep-5)*e.stepvoltageincrement);
-			U2 = e.U*0.85;
+			U2 = e.U - u_changed;
 		}
 	}
 	return String.format("%.2f", U2);

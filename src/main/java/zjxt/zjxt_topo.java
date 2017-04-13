@@ -18,6 +18,7 @@ import com.drools.zjxt.kernellib.zjxt_Property;
 import com.softcore.cim.common.CommonListCode;
 import com.softcore.cim.entity.PowerSystemResource;
 import com.softcore.cim.entity.container.VoltageLevel;
+import com.drools.zjxt.kernellib.zjxt_CimBuild;
 
 public class zjxt_topo {
 	public List<zNode> TopoGraph = new ArrayList<zjxt_topo.zNode>();
@@ -153,12 +154,14 @@ public class zjxt_topo {
 			String sql = "select * from tblgraphtopoterminal";
 			ResultSet rSet = stat.executeQuery(sql);
 			while (rSet.next()) {
-				zNode equipNode = new zNode();
-				equipNode.Id = rSet.getString("ID");
+				String id = rSet.getString("ID");
+				zNode equipNode = zjxt_CimBuild.GetById(id); //new zNode();
+				equipNode.Id = id;
 				equipNode.Name = rSet.getString("NAME");
 				equipNode.Style = rSet.getInt("TAG");
 				equipNode.sId = rSet.getString("STID");
 				equipNode.LinkInfo = rSet.getString("LINKS");
+				
 				// equipNode.parentId = rSet.getString("PARENTID");
 				// TopoGraph.add(equipNode);
 				zNodeList.put(equipNode.Id, equipNode);
@@ -215,7 +218,7 @@ public class zjxt_topo {
 	 */
 	public void initLevelRelation(zNode node) {
 		if (!node.Visited) {
-			zjxt_msg.show("经过节点 {}", node.Name);
+			zjxt_msg.show("经过节点【{}】,电压等级:{}", node.Name,node.vlid);
 			node.Visited = true;
 			List<zNode> links = node.Links;
 			// boolean hasParallelEquipment = false; //连接点是否有并联电容器，若有优先处理电容器
@@ -227,15 +230,15 @@ public class zjxt_topo {
 			// }
 			for (zNode no : links) {
 				if (!no.Visited) {
-					zjxt_msg.show("访问节点 {}的连接节点{}", node.Name, no.Name);
-					if (node.Style == CommonListCode.CAPACITOR_CODE
-							|| node.Style == CommonListCode.TRANS_CODE
-							|| node.Style == CommonListCode.VOLTAGEREGULATOR_CODE
-							|| node.Style == CommonListCode.FEEDER_CODE) {
-						zjxt_msg.show("将节点 {}的上级节点设为: {}", no.Name, node.Name);
+					zjxt_msg.show("访问节点【{}】的连接节点【{}】", node.Name, no.Name);
+					if(node.vlid == 10000 && no.vlid < 10000)
+					{
+						zjxt_msg.show("将节点【{}】的上级节点设为【{}】", no.Name, node.Name);
 						no.parentId = node.Id;
+						node.ChildNodes.add(no);
+						
 					} else {
-						zjxt_msg.show("将节点 {}的上级节点设为: {}的上级节点{}", no.Name,
+						zjxt_msg.show("将节点【{}】的上级节点设为【{}】的上级节点ID {}", no.Name,
 								node.Name, node.parentId);
 						no.parentId = node.parentId;
 					}
@@ -308,7 +311,8 @@ public class zjxt_topo {
 		public String parentId = "";
 		public String sId = "";
 		public String LinkInfo = "";
-		public List<zNode> Links = new ArrayList<zjxt_topo.zNode>();
+		public List<zNode> Links = new ArrayList<zNode>();
+		public List<zNode> ChildNodes = new ArrayList<zNode>();
 		public zTerminal t1, t2, t3;
 		public zjxt_Property prop;
 

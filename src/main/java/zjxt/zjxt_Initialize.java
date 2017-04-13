@@ -1,5 +1,4 @@
 package zjxt;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -13,7 +12,6 @@ import java.util.Map;
 import com.drools.zjxt.kernellib.JkParam;
 import com.drools.zjxt.kernellib.zjxt_CimBuild;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zBreaker;
-import com.drools.zjxt.kernellib.zjxt_CimBuild.zBusbarSection;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zFeederLine;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zPowerQualityIns;
@@ -37,26 +35,21 @@ import zjxt.zjxt_topo.zNode;
 import zjxt2_app.zApf;
 import zjxt2_app.zTpunbalance;
 import zjxt2_app.zjxt_build;
-
-
-
 public class zjxt_Initialize {
-	
 	public static boolean InitError = false;
 	public static List<zNode> nodes = new ArrayList<zNode>();
 	public static Map<String, List> nodesMap = new HashMap<String, List>();
 	public static Map<String, VoltageLevel> voltageMap = new HashMap<String, VoltageLevel>();
-	
 	public static zjxt_topo topo = new zjxt_topo();
-	
 	public static Map<String, zSubStation> stationList = new HashMap<String, zSubStation>(8);
+
 	public static boolean Init() throws Exception{
 		try {			
-			Init_topo();
+			
 			Init_VoltageLevel();
 			Init_CommonListCode();
-			//Init_test();
 			Init_PowerNet();
+			Init_topo();
 			
 			if(InitError){
 				return false;
@@ -554,16 +547,12 @@ public class zjxt_Initialize {
 			String sql = "SELECT id,name FROM TBLSUBCONTROLAREA";
 			ResultSet rSet = stat.executeQuery(sql);
 			zSubControlArea cArea = zjxt_CimBuild.newSubControlArea();
-			zSubStation feedStation = null;
+			//zSubStation feedStation = null;
 			if(rSet.next()) {
 				cArea.setName(rSet.getString(2));	
 				cArea.setMrID(rSet.getString(1));
 			}
 			
-			//虚拟一个厂站专门所有管理馈线
-//			feedStation = zjxt_CimBuild.newSubStation(cArea);
-//			feedStation.setName("综合馈线管理");
-//			feedStation.setMrID("100100");
 			
 			//普通厂站初始化
 			zjxt_msg.show("初始化厂站...");
@@ -586,13 +575,14 @@ public class zjxt_Initialize {
 			while(rSet.next()){
 				String stationId = rSet.getString("substationid");
 				String id = rSet.getString("id");
-				if(!topo.zNodeList.containsKey(id)) continue;
+				//if(!topo.zNodeList.containsKey(id)) continue;
 				zFeederLine fLine = zjxt_CimBuild.newFeederLine(stationList.get(stationId));  
 				
 				fLine.setName(rSet.getString("NAME"));
 				fLine.setMrID(id);
 				fLine.setSubStation(stationList.get(stationId));
 				fLine.busid = "-1";
+				fLine.vlid = 10000;
 				Mapping(rSet, fLine);
 			}
 			
@@ -600,7 +590,7 @@ public class zjxt_Initialize {
 				//智能配网项目
 				//Init_SmartPrj();
 				zjxt_msg.showwarn("配网AVC1.0 不支持SVG,APF等设备.");
-				InitError = true;
+				InitError = false;
 			}else{
 				//普通配网项目
 				zjxt_msg.show("普通配网项目初始化...");
@@ -625,7 +615,7 @@ public class zjxt_Initialize {
 //					Mapping(rSet, bus);
 //				}
 
-				zjxt_msg.show("初始化补偿设备组...");
+				zjxt_msg.show("初始化补偿电容...");
 				sql = "SELECT *,t2.NOMINALVOLTAGE FROM TBLFEEDCAPACITOR t1 left join tblvoltagelevel t2 on t1.VOLTAGELEVELID=t2.id";
 				rSet = stat.executeQuery(sql);
 				while(rSet.next()){
@@ -633,21 +623,14 @@ public class zjxt_Initialize {
 					String fid = rSet.getString("FEEDID");
 					String name = rSet.getString("NAME");
 					String id = rSet.getString("id");
-					if(!topo.zNodeList.containsKey(id)) continue;
-					PowerSystemResource psr = zjxt_CimBuild.GetById(fid);
-					if(psr == null)
+					//if(!topo.zNodeList.containsKey(id)) continue;
+					zFeederLine fLine = (zFeederLine)zjxt_CimBuild.GetById(fid);
+					if(fLine == null)
 					{
-						zjxt_msg.showwarn(name+" 上级馈线不存在，馈线id:"+fid);
+						zjxt_msg.showwarn("电容【{}】引用了不存在的上级馈线id {}",name,fid);
 						InitError = true;
-						break;
+						return;
 					}
-					if(psr.getClass() != zFeederLine.class){
-						zjxt_msg.showwarn(name+" 上级馈线错误，馈线id:"+fid + "不是馈线类型!");
-						InitError = true;
-						break;
-					}
-					zFeederLine fLine = (zFeederLine)psr;
-					
 					zCompensator obj = zjxt_CimBuild.newCompensator(fLine, false);
 					obj.line = fLine;
 					obj.setName(rSet.getString("name"));
@@ -657,39 +640,32 @@ public class zjxt_Initialize {
 					obj.vlid = rSet.getInt("NOMINALVOLTAGE");
 					obj.voltage = voltageMap.get(obj.VLID);
 					obj.IsGroup = true;
-					obj.graphid = fid;
+					//obj.graphid = fid;
+					obj.capacity = rSet.getDouble("RATEDCAPACITY");
+					
 					Mapping(rSet, obj);
 				}
-				zjxt_msg.show("初始化补偿设备单元...");
+				zjxt_msg.show("初始化补偿电容子组...");
 				sql = "select fi.*,fm.SWITCHYXID from tblfeedcapacitoritem fi left join tblfeedcapacitoritemmeasure fm on fm.ID=fi.ID order by fi.feedcapacitorid ";
 				rSet = stat.executeQuery(sql);
 				while(rSet.next()){
-					String fid = rSet.getString("feedcapacitorid");    
+					String fcid = rSet.getString("feedcapacitorid");    
 					String iid = rSet.getString("ID");
 					String name = rSet.getString("NAME");
-					zCompensator cg = (zCompensator)zjxt_CimBuild.GetById(fid);  //取得电容器组
-					
+					zCompensator cg = (zCompensator)zjxt_CimBuild.GetById(fcid);  //取得电容器组
 					if(cg == null)
 					{
-						zjxt_msg.showwarn("电容单元 "+name+" id:"+iid+" 上级电容器组不存在，电容器组id:"+fid);
-						//InitError = true;
-						//break;
-						continue;
+						zjxt_msg.showwarn("电容子组【{}】引用了不存在的上级电容器组Id {}",name,fcid);
+						InitError = true;
+						return;
 					}
 					zFeederLine feederLine = (zFeederLine)cg.getFeederLine();
-					if(feederLine == null)
-					{
-						zjxt_msg.showwarn("电容单元 "+name+" id:"+iid+" 上级馈线不存在，馈线id:"+fid);
-						//InitError = true;
-						//break;
-						continue;
-					}
+					
 					zCompensator obj = zjxt_CimBuild.newCompensator(feederLine, true);
 					obj.line = feederLine;
 					obj.graphid = cg.graphid;
 					obj.setName(name);
 					obj.setMrID(iid);
-					obj.GroupId = fid;
 					//obj.AarrayType = rSet.getString("ArrayType");  //电容器组号
 					//obj.itemType = rSet.getString("COMPENSATIONMODE");      //电容器所补相位
 					obj.Id = iid;
@@ -698,9 +674,9 @@ public class zjxt_Initialize {
 					obj.RATEDCAPACITY = rSet.getFloat("RATEDCAPACITY");  //容量
 					obj.SWITCHID = rSet.getString("SWITCHYXID");                //控制开关遥信ID。
 					obj.COMPENSATEPOINTID = cg.COMPENSATEPOINTID;
-//					obj.VLID = rSet.getString("VOLTAGELEVELID");
-//					obj.vlid = rSet.getString("VOLTAGELEVELID");
-					//obj.setElementStyle("55");
+					obj.capacity = rSet.getDouble("RATEDCAPACITY");
+					obj.VLID = cg.VLID;
+					obj.vlid = cg.vlid;
 					Mapping(rSet, obj);
 					cg.AddUnit(obj);
 				}
@@ -714,22 +690,31 @@ public class zjxt_Initialize {
 						+ "where t2.ISONLOADTAPCHANGER=1"; //有载调压
 				rSet = stat.executeQuery(sql);
 				while(rSet.next()){
-//					String fid = rSet.getString("graphid");    
-					String id = rSet.getString("id");
-					if(!topo.zNodeList.containsKey(id)) continue;
+					String name = rSet.getString("NAME");    
+					String id = rSet.getString("ID");
+					//if(!topo.zNodeList.containsKey(id)) continue;
 					String fid = rSet.getString("FEEDID");          
 					zFeederLine fLine = (zFeederLine)zjxt_CimBuild.GetById(fid);
+					if(fLine == null)
+					{
+						zjxt_msg.showwarn("【{}】引用了不存在的上级馈线id {}",name,fid);
+						InitError = true;
+						return;
+					}
 					zTransformerFormer obj = zjxt_CimBuild.newTransformerFormer(fLine);
 					obj.setName(rSet.getString("NAME"));
 					obj.setMrID(rSet.getString("id"));
 					obj.capacity = rSet.getDouble("HWRC");
 					obj.lowStep = rSet.getInt("LOWSTEP");
 					obj.highStep = rSet.getInt("HIGHSTEP");
-					obj.stepvoltageincrement = rSet.getDouble("STEPVOLTAGEINCREMENT");
-					//obj.setElementStyle("54");
+					obj.VLID = rSet.getString("VOLTAGELEVELID");  //电压ID
+					obj.vlid = rSet.getInt("NOMINALVOLTAGE");	//电压值
+					//obj.stepvoltageincrement = rSet.getDouble("STEPVOLTAGEINCREMENT");
+					int u2 = 400; //默认有载配变额定输出电压为400V;
+					double k = rSet.getDouble("STEPVOLTAGEINCREMENT"); //调压变比.
+					obj.stepvoltageincrement = k;//((1 - 1/(1+k)) + (1/(1-k) - 1))*u2*0.5;  //计算调压电压变化值
 					obj.line = fLine;
-					obj.VLID = rSet.getString("VOLTAGELEVELID");
-					obj.vlid = rSet.getInt("NOMINALVOLTAGE");
+					
 //					if("1".equals(obj.VLID)) {
 //						obj.vlid = 220;
 //					} else if("2".equals(obj.VLID)) {
@@ -750,28 +735,31 @@ public class zjxt_Initialize {
 				rSet = stat.executeQuery(sql);
 				while(rSet.next()){
 					String id = rSet.getString("id");
-					if(!topo.zNodeList.containsKey(id)) continue;
-//					String fid = rSet.getString("graphid");           
-					String fid = rSet.getString("feedid");           
+					//if(!topo.zNodeList.containsKey(id)) continue;
+					String fid = rSet.getString("feedid");  
+					String name = rSet.getString("NAME");
 					zFeederLine fLine = (zFeederLine)zjxt_CimBuild.GetById(fid);
+					if(fLine == null)
+					{
+						zjxt_msg.showwarn("【{}】引用了不存在的上级馈线id {}",name,fid);
+						InitError = true;
+						return;
+					}
 					zVoltageRegulator obj = zjxt_CimBuild.newVoltageRegulator(fLine);
 					obj.lowStep = rSet.getInt("LOWSTEP");
 					obj.highStep = rSet.getInt("HIGHSTEP");
-					obj.stepvoltageincrement = rSet.getDouble("STEPVOLTAGEINCREMENT");
+					//obj.stepvoltageincrement = rSet.getDouble("STEPVOLTAGEINCREMENT");
 					obj.capacity = rSet.getDouble("RATEDCAPACITY");
-					obj.setName(rSet.getString("NAME"));
-					obj.setMrID(rSet.getString("id"));
-					//obj.setElementStyle("5556");
+					obj.setName(name);
+					obj.setMrID(id);
 					obj.line = fLine;
 					obj.VLID = rSet.getString("VOLTAGELEVELID");
 					obj.vlid = rSet.getInt("NOMINALVOLTAGE");
-//					if("1".equals(obj.VLID)) {
-//						obj.vlid = 220;
-//					} else if("2".equals(obj.VLID)) {
-//						obj.vlid = 10000;
-//					}
+					int u2 = 10000; //默认有载调压变额定输出电压为10000V;
+					double k = rSet.getDouble("STEPVOLTAGEINCREMENT"); //调压变比.
+					obj.stepvoltageincrement = k;//((1 - 1/(1+k)) + (1/(1-k) - 1))*u2*0.5;  //计算调压电压变化值
 					obj.voltage = voltageMap.get(obj.VLID);
-					obj.graphid = fid;
+					//obj.graphid = fid;
 					Mapping(rSet, obj);
 				}
 				
@@ -779,15 +767,21 @@ public class zjxt_Initialize {
 				sql = "select t1.*,t.switchyxid from tblfeedswitch t1 left join tblfeedswitchmeasure t on t.id=t1.id";
 				rSet = stat.executeQuery(sql);
 				while(rSet.next()){
-					String fid = rSet.getString("graphid");           
+					String fid = rSet.getString("feedid");      
+					String name = rSet.getString("NAME");
 					zFeederLine fLine = (zFeederLine)zjxt_CimBuild.GetById(fid);
+					if(fLine == null)
+					{
+						zjxt_msg.showwarn("【{}】引用了不存在的上级馈线id {}",name,fid);
+						InitError = true;
+						return;
+					}
 					zBreaker obj = zjxt_CimBuild.newBreaker(fLine);
-					obj.setName(rSet.getString("NAME"));
+					obj.setName(name);
 					obj.setMrID(rSet.getString("id"));
 					obj.line = fLine;
 					obj.setElementStyle("1");
 					obj.YXID = rSet.getString("switchyxid");
-					obj.graphid = fid;
 					Mapping(rSet, obj);
 				}
 			}
