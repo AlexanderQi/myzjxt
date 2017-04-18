@@ -13,7 +13,7 @@ public class zjxt_program {
 
 	public static void main(String[] args) {
 		zjxt_kernel.IniLog4j(null);
-		zjxt_kernel.ZJXT_DRL = "rules/pw.drl"; //"pw.drl"; 
+		zjxt_kernel.ZJXT_DRL ="pw.drl";// "rules/pw.drl";  
 		clearCmd();
 		zjxt_kernel.launch();
 	}
