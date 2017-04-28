@@ -32,8 +32,8 @@ public class zjxt_Measure {
 	/** 死数据判断时间(单位:分钟) */
 	private static final int DEAD_DATE_MINUTE = 10;
 
-	//private Connection conn = null;
-	//private Statement stat = null;
+	// private Connection conn = null;
+	// private Statement stat = null;
 	private static zjxt_Measure instance = null;
 	private static Lock lock = new ReentrantLock();
 
@@ -49,37 +49,37 @@ public class zjxt_Measure {
 
 	}
 
-//	public boolean IsFileDb = false;
-//	private scmdbc rtdb = new scmdbc();
-//	public String rtdb_ip = "127.0.0.1";
-//	// public String rtdb_ip = "192.168.2.229";
-//	public int rtdb_port = 31833;
+	// public boolean IsFileDb = false;
+	// private scmdbc rtdb = new scmdbc();
+	// public String rtdb_ip = "127.0.0.1";
+	// // public String rtdb_ip = "192.168.2.229";
+	// public int rtdb_port = 31833;
 
-//	public Connection getConnection() throws Exception {
-//		if (ConnectRtdb())
-//			return conn;
-//		else {
-//			return null;
-//		}
-//	}
+	// public Connection getConnection() throws Exception {
+	// if (ConnectRtdb())
+	// return conn;
+	// else {
+	// return null;
+	// }
+	// }
 
-//	public boolean ConnectRtdb() throws Exception {
-//		if (IsFileDb) {
-//			if (rtdb.ConnectFDB("sa", "sa", rtdb_ip, rtdb_port)) {
-//				conn = rtdb.connection;
-//				stat = rtdb.statement;
-//				return true;
-//			}
-//			return false;
-//		} else {
-//			if (rtdb.Connect("sa", "sa", rtdb_ip, rtdb_port)) {
-//				conn = rtdb.connection;
-//				stat = rtdb.statement;
-//				return true;
-//			}
-//			return false;
-//		}
-//	}
+	// public boolean ConnectRtdb() throws Exception {
+	// if (IsFileDb) {
+	// if (rtdb.ConnectFDB("sa", "sa", rtdb_ip, rtdb_port)) {
+	// conn = rtdb.connection;
+	// stat = rtdb.statement;
+	// return true;
+	// }
+	// return false;
+	// } else {
+	// if (rtdb.Connect("sa", "sa", rtdb_ip, rtdb_port)) {
+	// conn = rtdb.connection;
+	// stat = rtdb.statement;
+	// return true;
+	// }
+	// return false;
+	// }
+	// }
 
 	private List<zjxt_yc> yclist = new ArrayList<zjxt_yc>();
 	private Map<String, zjxt_yc> ycMap = new HashMap<String, zjxt_yc>(2408);
@@ -95,7 +95,8 @@ public class zjxt_Measure {
 		ytlist.clear();
 	}
 
-	public void Addyx(String idString, int ca, int czh, int yxh, String name) throws Exception {
+	public void Addyx(String idString, int ca, int czh, int yxh, String name)
+			throws Exception {
 		// for (Iterator<zjxt_yx> iterator = yxlist.iterator();
 		// iterator.hasNext();) {
 		// zjxt_yx ayx = (zjxt_yx) iterator.next();
@@ -118,8 +119,8 @@ public class zjxt_Measure {
 		yxMap.put(yx.idString, yx);
 	}
 
-	public void Addyc(String idString, int ca, int czh, int ych, float offset, float ratio, String name, int valueStyle)
-			throws Exception {
+	public void Addyc(String idString, int ca, int czh, int ych, float offset,
+			float ratio, String name, int valueStyle) throws Exception {
 		// for (Iterator<zjxt_yc> iterator = yclist.iterator();
 		// iterator.hasNext();) {
 		// zjxt_yc ayc = (zjxt_yc) iterator.next();
@@ -145,8 +146,9 @@ public class zjxt_Measure {
 		ycMap.put(yc.idString, yc);
 	}
 
-	public void Addyk(String idString, String elementId, int ca, int czh_up, int czh_down, int dh_up, int dh_down,
-			int fixv_up, int fixv_down, String ykname, String ykkind) throws Exception {
+	public void Addyk(String idString, String elementId, int ca, int czh_up,
+			int czh_down, int dh_up, int dh_down, int fixv_up, int fixv_down,
+			String ykname, String ykkind) throws Exception {
 		for (Iterator<zjxt_yk> iterator = yklist.iterator(); iterator.hasNext();) {
 			zjxt_yk ayt = (zjxt_yk) iterator.next();
 			if (ayt.id.equals(idString)) {
@@ -168,10 +170,10 @@ public class zjxt_Measure {
 		yklist.add(yk);
 	}
 
-	public zjxt_yt Addyt(String idString, String elementId, String ytkind, int ca, int czh, int dh, float multiplevalue)
-			throws Exception {
-		for (Iterator<zjxt_yk> iterator = yklist.iterator(); iterator.hasNext();) {
-			zjxt_yk ayt = (zjxt_yk) iterator.next();
+	public zjxt_yt Addyt(String idString, String elementId, String ytkind,
+			int ca, int czh, int dh, float multiplevalue) throws Exception {
+		for (Iterator<zjxt_yt> iterator = ytlist.iterator(); iterator.hasNext();) {
+			zjxt_yt ayt = (zjxt_yt) iterator.next();
 			if (ayt.id.equals(idString)) {
 				throw new Exception("遥调id已存在:" + idString);
 			}
@@ -290,7 +292,8 @@ public class zjxt_Measure {
 		return false;
 	}
 
-	public boolean SetYcValue(int ca, int czh, int ych, float ycValue, Date rtime) {
+	public boolean SetYcValue(int ca, int czh, int ych, float ycValue,
+			Date rtime) {
 		for (Iterator<zjxt_yc> iterator = yclist.iterator(); iterator.hasNext();) {
 			zjxt_yc ayc = (zjxt_yc) iterator.next();
 			if (ayc.ca == ca && ayc.czh == czh && ayc.ych == ych) {
@@ -496,7 +499,7 @@ public class zjxt_Measure {
 			// statement = stat;
 			// ycsql = "select t1.CONTROLAREA,
 			// t1.czh,t1.ych,t1.ycvalue,t1.refreshtime,id from tblycvalue t1";
-			//// ycsql = "SELECT t1.CONTROLAREA,
+			// // ycsql = "SELECT t1.CONTROLAREA,
 			// t1.czh,t1.ych,t1.ycvalue,t1.refreshtime,t1.id,CASE WHEN
 			// t2.titlecode IS NULL THEN '' ELSE t2.titlecode END valuestyle
 			// FROM tblycvalue t1 LEFT JOIN tblcommonlistcode t2 ON
@@ -518,7 +521,8 @@ public class zjxt_Measure {
 				if (!rSet.wasNull())
 					if (substituted == 1) {
 						f3 = (float) (Math.round(rSet.getFloat(7) * 1000)) / 1000;
-						zjxt_msg.showwarn("人工置数 ycid:" + rSet.getString(9) + " value=" + f3);
+						zjxt_msg.showwarn("人工置数 ycid:" + rSet.getString(9)
+								+ " value=" + f3);
 					}
 				// }
 
@@ -536,7 +540,8 @@ public class zjxt_Measure {
 				if (!rSet.wasNull())
 					if (substituted == 1) {
 						vi = rSet.getInt(7);
-						zjxt_msg.showwarn("人工置数 yxid:" + rSet.getString(8) + " value=" + vi);
+						zjxt_msg.showwarn("人工置数 yxid:" + rSet.getString(8)
+								+ " value=" + vi);
 					}
 				// }
 				// SetYxValue(rSet.getInt(1), rSet.getInt(2), rSet.getInt(3),
@@ -556,8 +561,8 @@ public class zjxt_Measure {
 
 	private void updateDeadData() throws Exception {
 		try {
-//			if (conn == null || conn.isClosed() || stat.isClosed())
-//				ConnectRtdb();
+			// if (conn == null || conn.isClosed() || stat.isClosed())
+			// ConnectRtdb();
 			Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 			conn.setAutoCommit(false); // 手动提交
 			// PrepareStatement statement = conn.createStatement();
@@ -604,20 +609,23 @@ public class zjxt_Measure {
 
 	public void Init_ycyx() throws Exception {
 		try {
-//			if (conn == null || conn.isClosed() || stat.isClosed())
-//				ConnectRtdb();
+			// if (conn == null || conn.isClosed() || stat.isClosed())
+			// ConnectRtdb();
 			Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 			Statement statement = conn.createStatement();
-			ResultSet rSet = statement.executeQuery(
-					"select t1.CONTROLAREA, t1.czh,t1.ych,t1.id, t1.name,t1.valuestyle from tblycvalue t1 where t1.czh IS NOT NULL AND t1.czh <> ''");
+			ResultSet rSet = statement
+					.executeQuery("select t1.CONTROLAREA, t1.czh,t1.ych,t1.id, t1.name,t1.valuestyle from tblycvalue t1 where t1.czh IS NOT NULL AND t1.czh <> ''");
 			while (rSet.next()) {
 
-				Addyc(rSet.getString(4), rSet.getInt(1), rSet.getInt(2), rSet.getInt(3), 0f, 1f, rSet.getString(5),
+				Addyc(rSet.getString(4), rSet.getInt(1), rSet.getInt(2),
+						rSet.getInt(3), 0f, 1f, rSet.getString(5),
 						rSet.getInt(6));
 			}
-			rSet = statement.executeQuery("select t1.CONTROLAREA, t1.czh,t1.yxh,t1.id,t1.name from tblyxvalue t1");
+			rSet = statement
+					.executeQuery("select t1.CONTROLAREA, t1.czh,t1.yxh,t1.id,t1.name from tblyxvalue t1");
 			while (rSet.next()) {
-				Addyx(rSet.getString(4), rSet.getInt(1), rSet.getInt(2), rSet.getInt(3), rSet.getString(5));
+				Addyx(rSet.getString(4), rSet.getInt(1), rSet.getInt(2),
+						rSet.getInt(3), rSet.getString(5));
 			}
 			conn.close();
 		} catch (Exception e) {
@@ -644,9 +652,12 @@ public class zjxt_Measure {
 				if (rSet.getString("YKKIND") != null) {
 					ykkind = rSet.getString("YKKIND");
 				}
-				Addyk(rSet.getString("ID"), eid, rSet.getInt("CONTROLAREA"), rSet.getInt("UPPER_CZH"),
-						rSet.getInt("LOWER_CZH"), rSet.getInt("UPPER_YKYTH"), rSet.getInt("LOWER_YKYTH"),
-						rSet.getInt("UPPER_YKYTVALUE"), rSet.getInt("LOWER_YKYTVALUE"), rSet.getString(ykname), ykkind);
+				Addyk(rSet.getString("ID"), eid, rSet.getInt("CONTROLAREA"),
+						rSet.getInt("UPPER_CZH"), rSet.getInt("LOWER_CZH"),
+						rSet.getInt("UPPER_YKYTH"), rSet.getInt("LOWER_YKYTH"),
+						rSet.getInt("UPPER_YKYTVALUE"),
+						rSet.getInt("LOWER_YKYTVALUE"), rSet.getString(ykname),
+						ykkind);
 
 			}
 			conn.close();
@@ -665,26 +676,27 @@ public class zjxt_Measure {
 			ResultSet rSet = stat.executeQuery(sql);
 			String bugstr;
 			String ytkind;
-			boolean IsSmartPrj = JkParam.Instance().IsSmartPrj;
+			// boolean IsSmartPrj = JkParam.Instance().IsSmartPrj;
 			while (rSet.next()) {
 				ytkind = rSet.getString("YTKIND");
 				if (ytkind == null)
 					ytkind = "undefined";
-				zjxt_yt yt = Addyt(rSet.getString("ID"), rSet.getString("CMDELEMENTID"), ytkind.toLowerCase(),
-						rSet.getInt("CONTROLAREA"), rSet.getInt("CZH"), rSet.getInt("YTH"),
-						rSet.getFloat("MULTIPLEVALUE"));
+				zjxt_yt yt = Addyt(rSet.getString("ID"),
+						rSet.getString("CMDELEMENTID"), ytkind.toLowerCase(),
+						rSet.getInt("CONTROLAREA"), rSet.getInt("CZH"),
+						rSet.getInt("YTH"), rSet.getFloat("MULTIPLEVALUE"));
 
-				if (!IsSmartPrj) {
-					PowerSystemResource resource = zjxt_CimBuild.GetById(yt.elementId);
-					if (resource == null) {
-						bugstr = "Init_yt->无该遥调设备ID:" + yt.elementId + " 对应遥调ID:" + yt.id;
-						zjxt_msg.showwarn(bugstr);
-						continue;
-					}
-					if (resource.getClass() == zCompensator.class) {
-						zCompensator compensator = (zCompensator) resource;
-						compensator.IsYT = true;
-					}
+				PowerSystemResource resource = zjxt_CimBuild
+						.GetById(yt.elementId);
+				if (resource == null) {
+					bugstr = "Init_yt->无该遥调设备ID:" + yt.elementId + " 对应遥调ID:"
+							+ yt.id;
+					zjxt_msg.showwarn(bugstr);
+					continue;
+				}
+				if (resource.getClass() == zCompensator.class) {
+					zCompensator compensator = (zCompensator) resource;
+					compensator.IsYT = true;
 				}
 
 			}
