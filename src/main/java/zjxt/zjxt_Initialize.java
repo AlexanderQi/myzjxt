@@ -51,7 +51,7 @@ public class zjxt_Initialize {
 			Init_PowerNet();
 			Init_topo();
 			
-			if(InitError){
+			if(InitError ){
 				return false;
 			}
 			Init_State();
@@ -241,8 +241,11 @@ public class zjxt_Initialize {
 	 */
 	public static void Init_topo() throws Exception {
 		zjxt_msg.show("初始化拓扑...");
-		topo.LoadFromDb();
-		topo.IniTopo();
+		if(topo.LoadFromDb())
+			topo.IniTopo();
+		else
+			InitError = true;
+			
 	}
 	
 	public static void Init_SmartPrj()throws Exception{

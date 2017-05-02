@@ -4,7 +4,7 @@
     <default-config>
         <property name="user">root</property>
         <property name="password">root</property>
-        <property name="jdbcUrl">jdbc:mysql://192.168.0.190/pwtbl?useUnicode=true&amp;characterEncoding=UTF-8</property>
+        <property name="jdbcUrl">jdbc:mysql://192.168.0.190/pwtbl_dg?useUnicode=true&amp;characterEncoding=UTF-8</property>
     </default-config>
     
     <default-config1>

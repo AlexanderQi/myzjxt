@@ -92,7 +92,7 @@ public class zjxt_kernel {
 //			}
 			zjxt_Initialize.Init();
 			if (zjxt_Initialize.InitError) {
-				mlog.warn("初始化失败,请检查日志。");
+				zjxt_msg.showwarn("初始化失败,请检查日志。");
 				br.readLine();
 				br.close();
 				return;

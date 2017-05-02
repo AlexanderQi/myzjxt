@@ -145,7 +145,7 @@ public class zjxt_topo {
 		tempLinks = null;
 	}
 
-	public void LoadFromDb() {
+	public boolean LoadFromDb() {
 		try {
 			Connection dbConnection = zjxt_ConnectionPool.Instance()
 					.getConnection();
@@ -167,6 +167,8 @@ public class zjxt_topo {
 				zNodeList.put(equipNode.Id, equipNode);
 			}
 			dbConnection.close();
+			if(zNodeList.isEmpty()) 
+				return false;
 			IniLinks();
 			replaceTnode();
 			List<zNode> headNodes = getHeadNode();
@@ -184,9 +186,11 @@ public class zjxt_topo {
 				}
 				zjxt_msg.show("id=" + entry.getKey() + ", links=" + info);
 			}
+			return true;
 
 		} catch (Exception e) {
 			zjxt_msg.showwarn("zjxt_topo->LoadFromDb()->", e);
+			return false;
 		}
 
 	}
