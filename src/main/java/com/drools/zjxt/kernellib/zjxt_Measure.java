@@ -15,7 +15,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zCapacitor;
 import com.softcore.cim.common.CommonListCode;
 import com.softcore.cim.entity.PowerSystemResource;
 
@@ -694,8 +694,8 @@ public class zjxt_Measure {
 					zjxt_msg.showwarn(bugstr);
 					continue;
 				}
-				if (resource.getClass() == zCompensator.class) {
-					zCompensator compensator = (zCompensator) resource;
+				if (resource.getClass() == zCapacitor.class) {
+					zCapacitor compensator = (zCapacitor) resource;
 					compensator.IsYT = true;
 				}
 

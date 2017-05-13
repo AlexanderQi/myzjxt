@@ -17,7 +17,7 @@ import com.drools.zjxt.kernellib.Limit;
 import com.drools.zjxt.kernellib.Limit.LimitValue;
 import com.drools.zjxt.kernellib.zjxt_CimBuild;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zBreaker;
-import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zCapacitor;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zDisconnector;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zFeederLine;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zSVG;
@@ -557,8 +557,8 @@ public class zjxt_State {
 				return GetFeedLine(resource);
 			}
 			else {
-				if(resource.getClass() == zCompensator.class){
-					zCompensator compensator = (zCompensator)resource;
+				if(resource.getClass() == zCapacitor.class){
+					zCapacitor compensator = (zCapacitor)resource;
 					cString = GetOneCtrlState(compensator.getMrID());
 					FeederLine feederLine = compensator.getFeederLine();
 					String feederLineCS = getFeederLineCS(feederLine);
@@ -763,10 +763,10 @@ public class zjxt_State {
 		String LockReason = "";
 		
 		PowerSystemResource psr = zjxt_CimBuild.GetById(elementId); //对于电容器组，要额外考虑组和电容单元的状态。
-		if(psr.getClass() == zCompensator.class){
-			zCompensator comp = (zCompensator)psr;
+		if(psr.getClass() == zCapacitor.class){
+			zCapacitor comp = (zCapacitor)psr;
 			if(!comp.IsGroup){       //非电容器组
-				zCompensator group = comp.MyGroup; //取组设备
+				zCapacitor group = comp.MyGroup; //取组设备
 				LockReason = GetLockState(group.getMrID());  //取电容组状态
 			}
 		}

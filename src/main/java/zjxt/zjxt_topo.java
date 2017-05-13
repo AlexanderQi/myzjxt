@@ -348,8 +348,10 @@ public class zjxt_topo {
 
 		public int currentStep = -1; // 当前档位
 
-		public double stepvoltageincrement = 0; // 调节一档的电压变化(百分比)
-
+		public float volChange;// 补偿设备电压改变量;
+		
+		public double stepvoltageincrement = 0; // 变压/调压器调节一档的电压变化(百分比)
+		
 		public double volOptimizeLo = 0; // 电压优化下限
 
 		public double volOptimizeUp = 0; // 电压优化上限

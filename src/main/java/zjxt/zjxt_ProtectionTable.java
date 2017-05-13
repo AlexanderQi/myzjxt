@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.drools.zjxt.kernellib.zjxt_CimBuild;
-import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zCapacitor;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zSVG;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zTransformerFormer;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zVoltageRegulator;
@@ -85,8 +85,8 @@ public class zjxt_ProtectionTable {
 							apf.protectList.add(pt);
 						}
 					}
-					if(power instanceof zCompensator) {
-						zCompensator com = (zCompensator) power;
+					if(power instanceof zCapacitor) {
+						zCapacitor com = (zCapacitor) power;
 						if(com.getMrID().equals(pt.ObjectElementID)) {
 							com.protectList.add(pt);
 						}

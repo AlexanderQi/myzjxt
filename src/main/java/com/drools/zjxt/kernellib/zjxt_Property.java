@@ -10,7 +10,7 @@ import java.util.List;
 
 import org.slf4j.helpers.MessageFormatter;
 
-import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zCapacitor;
 import com.drools.zjxt.kernellib.zjxt_Measure;
 import com.drools.zjxt.kernellib.zjxt_Measure.zjxt_yk;
 import com.drools.zjxt.kernellib.zjxt_Measure.zjxt_yt;
@@ -334,8 +334,8 @@ public class zjxt_Property {
 			String CmdContent, String Sound) throws Exception {
 		String elementId = Owner.getMrID();
 		long aid = 0;
-		if(Owner instanceof zCompensator) { //电容器特殊处理
-			aid = zjxt_Cmd.SendAdviceSound(((zCompensator) Owner).GroupId, Kind, Action, CmdContent,
+		if(Owner instanceof zCapacitor) { //电容器特殊处理
+			aid = zjxt_Cmd.SendAdviceSound(((zCapacitor) Owner).GroupId, Kind, Action, CmdContent,
 					Sound);
 		} else {
 			aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
@@ -544,7 +544,7 @@ public class zjxt_Property {
 	public void SetException(String eStr) throws Exception {
 		String elementId = Owner.getMrID();
 		zjxt_State.SetExceptionLock(elementId, eStr);
-		zjxt_msg.showwarn(Owner.getName() + eStr);
+		//zjxt_msg.showwarn(Owner.getName() + eStr);
 	}
 
 	public String ProtectInfo = "";

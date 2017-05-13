@@ -29,7 +29,7 @@ import com.softcore.cim.entity.block.Conductor;
 import com.softcore.cim.entity.block.LineGroup;
 import com.softcore.cim.entity.block.connector.BusbarSection;
 import com.softcore.cim.entity.block.line.ACLineSegment;
-import com.softcore.cim.entity.block.regulating.Compensator;
+import com.softcore.cim.entity.block.regulating.Capacitor;
 import com.softcore.cim.entity.block.regulating.SVG;
 import com.softcore.cim.entity.block.regulating.TSF;
 import com.softcore.cim.entity.block.regulating.VoltageRegulator;
@@ -71,9 +71,9 @@ public class zjxt_CimBuild {
 			if (obj.getMrID().equals(Id)) {
 				return obj;
 			} else {
-				if(obj instanceof zCompensator) {
-					List<zCompensator> list = ((zCompensator) obj).UnitList;
-					for(int i=0; i<((zCompensator) obj).UnitList.size(); i++) {
+				if(obj instanceof zCapacitor) {
+					List<zCapacitor> list = ((zCapacitor) obj).UnitList;
+					for(int i=0; i<((zCapacitor) obj).UnitList.size(); i++) {
 						if(list.get(i).getMrID().equals(Id)) {
 							return obj;
 						}
@@ -86,13 +86,13 @@ public class zjxt_CimBuild {
 	}
 
 	// 根据配变ID取得关联的电容对象.
-	public static zCompensator GetBytransformId(String id) {
+	public static zCapacitor GetBytransformId(String id) {
 		for (Iterator<PowerSystemResource> iterator = cbList.iterator(); iterator
 				.hasNext();) {
 			PowerSystemResource obj = (PowerSystemResource) iterator.next();
-			if (obj.getClass() != zCompensator.class)
+			if (obj.getClass() != zCapacitor.class)
 				continue;
-			zCompensator comp = (zCompensator) obj;
+			zCapacitor comp = (zCapacitor) obj;
 			if (comp.COMPENSATEPOINTID.equals(id)) {
 				return comp;
 			}
@@ -271,22 +271,22 @@ public class zjxt_CimBuild {
 	}
 
 	// 电容
-	public static zCompensator newCompensator(zFeederLine Owner, boolean isItem) {
-		zCompensator compensator = new zCompensator();
-		compensator.property = new zjxt_Property(compensator,
+	public static zCapacitor newCapacitor(zFeederLine Owner, boolean isItem) {
+		zCapacitor capa = new zCapacitor();
+		capa.property = new zjxt_Property(capa,
 				zjxt_CimBuild.Measure);
 		if (Owner != null && !isItem) {
-			Owner.AddCp(compensator);
-			Owner.equipments.add(compensator);
+			Owner.AddCp(capa);
+			Owner.equipments.add(capa);
 		}
 
-		compensator.setFeederLine(Owner);
-		compensator.line = Owner;
+		capa.setFeederLine(Owner);
+		capa.line = Owner;
 		if(!isItem) {
-			cbList.add(compensator);
+			cbList.add(capa);
 		}
 		
-		return compensator;
+		return capa;
 	}
 
 	// 虚拟通用电力设备
@@ -350,7 +350,7 @@ public class zjxt_CimBuild {
 		public zjxt_Property property;
 		public List<PowerSystemResource> equipments;
 		public List<zTransformerFormer> tfList;
-		public List<zCompensator> cpList;
+		public List<zCapacitor> cpList;
 		public int tag = 180;
 		public String busid = "";
 
@@ -358,7 +358,7 @@ public class zjxt_CimBuild {
 			super();
 			// LineGroups = new ArrayList<LineGroup>();
 			tfList = new ArrayList<zTransformerFormer>();
-			cpList = new ArrayList<zjxt_CimBuild.zCompensator>();
+			cpList = new ArrayList<zjxt_CimBuild.zCapacitor>();
 			equipments = new ArrayList<PowerSystemResource>();
 		}
 
@@ -371,7 +371,7 @@ public class zjxt_CimBuild {
 			tfList.add(psr);
 		}
 
-		public void AddCp(zCompensator psr) {
+		public void AddCp(zCapacitor psr) {
 			cpList.add(psr);
 		}
 
@@ -419,7 +419,7 @@ public class zjxt_CimBuild {
 			return cpList.size();
 		}
 
-		public zCompensator GetCpByIndex(int index) {
+		public zCapacitor GetCpByIndex(int index) {
 			return cpList.get(index);
 		}
 
@@ -447,10 +447,10 @@ public class zjxt_CimBuild {
 			return result;
 		}
 
-		public zCompensator GetCpByName(String name) {
-			zCompensator result = null;
+		public zCapacitor GetCpByName(String name) {
+			zCapacitor result = null;
 			for (int i = 0; i < cpList.size(); i++) {
-				zCompensator psr = cpList.get(i);
+				zCapacitor psr = cpList.get(i);
 				if (psr.getName().equals(name)) {
 					result = psr;
 					break;
@@ -459,10 +459,10 @@ public class zjxt_CimBuild {
 			return result;
 		}
 
-		public zCompensator GetCpById(String name) {
-			zCompensator result = null;
+		public zCapacitor GetCpById(String name) {
+			zCapacitor result = null;
 			for (int i = 0; i < cpList.size(); i++) {
-				zCompensator psr = cpList.get(i);
+				zCapacitor psr = cpList.get(i);
 				if (psr.getMrID().equals(name)) {
 					result = psr;
 					break;
@@ -1069,7 +1069,7 @@ public class zjxt_CimBuild {
 	}
 
 	// 补偿电容
-	public static class zCompensator extends Compensator {
+	public static class zCapacitor extends Capacitor {
 		public zjxt_Property property;
 		public List<zjxt_ProtectionTable.zProtection> protectList = new ArrayList<zjxt_ProtectionTable.zProtection>();
 		private FeederLine feederLine;
@@ -1079,22 +1079,22 @@ public class zjxt_CimBuild {
 		public boolean IsYT = false; // 是否是遥调型的电容设备。
 		public boolean IsGroup = true; // 是否是电容器组，如果是则具体控制在其UnitList中的具体电容器上。
 		public String GroupId = "-1"; // 电容器组id,如果为-1表示是当前电容是电容器组，否则值为电容器单元的上级电容组的id
-		public List<zCompensator> UnitList;
-		public zCompensator MyGroup = null;
+		public List<zCapacitor> UnitList;
+		public zCapacitor MyGroup = null;
 		// public String AarrayType = ""; // 组号
 		public String itemType = ""; // 补偿方式：共补,A,B,C
-		public float VOLTAGECHANGE; // 电压改变量;
+		
 		public float RATEDCAPACITY; // 容量
 		public String VLID = ""; // 电压等级ID
 		// private float weighting = 0.0f; // 计算用权重
 		public float calc_vol = 0f; // 预算后电压
 
-		public zCompensator() {
+		public zCapacitor() {
 			super();
-			UnitList = new ArrayList<zjxt_CimBuild.zCompensator>();
+			UnitList = new ArrayList<zjxt_CimBuild.zCapacitor>();
 		}
 
-		public void AddUnit(zCompensator unit) {
+		public void AddUnit(zCapacitor unit) {
 			UnitList.add(unit);
 			unit.IsGroup = false;
 			unit.MyGroup = this;
@@ -1135,7 +1135,7 @@ public class zjxt_CimBuild {
 					p.hasDeadData = p.prop.isDeadData("OUTPUTUABYCID") || 
 							p.prop.isDeadData("LINEIYCID");
 					
-				} else if(p instanceof zCompensator) {
+				} else if(p instanceof zCapacitor) {
 					p.hasDeadData = p.prop.isDeadData("UYCID") ||
 							p.prop.isDeadData("IYCID") ||
 							p.prop.isDeadData("QCYCID") ||
@@ -1193,8 +1193,8 @@ public class zjxt_CimBuild {
 //					p.stepvoltageincrement = ((zVoltageRegulator)p).stepvoltageincrement;
 					p.kind = CommonListCode.VOLTAGE_KIND;
 					
-				} else if(p instanceof zCompensator) {
-					if(((zCompensator) p).vlid==10000) {
+				} else if(p instanceof zCapacitor) {
+					if(((zCapacitor) p).vlid==10000) {
 						p.X = 5;
 					}
 					p.controlState = p.prop.CanControl();
@@ -1207,7 +1207,7 @@ public class zjxt_CimBuild {
 					p.TargetPF = p.prop.getyc("TARGETPFYCID");
 					if(p.PF >= 1)
 					{
-						if(((zCompensator) p).vlid==10000) {
+						if(((zCapacitor) p).vlid==10000) {
 							p.P = (float) (Math.sqrt(3)*p.U*p.I*p.PF) / 1000;
 						} else {
 							p.P = 3 * p.U * p.I * p.PF / 1000;
@@ -1388,6 +1388,7 @@ public class zjxt_CimBuild {
 	
 	//检查遥控遥调执行结果
 	public static void checkYKYTResult() throws Exception {
+		zjxt_msg.show("检查调控反馈信息...");
 		for(Object p: cbList) {
 			if(p instanceof zFeederLine){
 				zFeederLine f = (zFeederLine)p;			
@@ -1413,8 +1414,8 @@ public class zjxt_CimBuild {
 				}
 				
 				
-				if(p instanceof zCompensator) {
-					zCompensator cap = (zCompensator)p;
+				if(p instanceof zCapacitor) {
+					zCapacitor cap = (zCapacitor)p;
 					float pf = cap.TargetPF;
 	    			//int sonoff = cap.property.getyxById(cap.SWITCHID);
 	    			//zjxt_msg.show(cap.getName() + ":" + sonoff);
@@ -1543,8 +1544,8 @@ public class zjxt_CimBuild {
 	
 	//计算电抗值
 	public static void caculateX(Equipment e) {
-		if(e instanceof zCompensator) {
-			e.X = (float)(Math.abs(e.U-e.oldU)*10.5/(((zCompensator) e).capacity/2));
+		if(e instanceof zCapacitor) {
+			e.X = (float)(Math.abs(e.U-e.oldU)*10.5/(((zCapacitor) e).capacity/2));
 		} else if(e instanceof zVoltageRegulator) {
 			e.X = (float)(Math.abs(e.U-e.oldU)*10.5/(e.P*(Math.tan(Math.acos(e.oldPF))-Math.tan(Math.acos(e.PF)))));
 		} else if(e instanceof zTransformerFormer) {
@@ -1573,12 +1574,13 @@ public class zjxt_CimBuild {
 		VoltageLevel voltage = e.voltage;
 //		boolean isVolError = false;
 		try {
-			if(e instanceof zCompensator ||
+			if(e instanceof zCapacitor ||
 		    		e instanceof zVoltageRegulator) {
 				if("0.38kv".equals(voltage.getName())) { //低压
 					if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 				    		e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {
 				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+				    		e.prop.SetException("电压量测异常");
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
 				    		return true;
@@ -1590,6 +1592,7 @@ public class zjxt_CimBuild {
 					if(e.U>voltage.getHighVoltageLimit() ||
 				    		e.U<voltage.getLowVoltageLimit()) {
 				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+				    		e.prop.SetException("电压量测异常");
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
 				    		return true;
@@ -1604,7 +1607,7 @@ public class zjxt_CimBuild {
 //	    			e.isMeasureError = true;
 //	    			return e.isVolError;
 //	    		}
-	    		if(e instanceof zCompensator) { //针对电容器判断无功、功率因数量测的正确性
+	    		if(e instanceof zCapacitor) { //针对电容器判断无功、功率因数量测的正确性
 	    			double tmp = 0.0;
 	    			if(e.vlid==10000) {
 	    				if(e.PF == 1 && Math.abs(e.Q)<=0.5)
@@ -1632,6 +1635,7 @@ public class zjxt_CimBuild {
 	    		if(e.U>250 ||
 		    		e.U<180) {
 		    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+		    		e.prop.SetException("电压量测异常");
 		    		e.isMeasureError = true;
 		    		e.isVolError = true;
 		    		return true;
@@ -1645,6 +1649,7 @@ public class zjxt_CimBuild {
 	    		if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 	    			e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {  
 	    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+	    			e.prop.SetException("电压量测异常");
 	    			e.isMeasureError = true;
 		    		return e.isVolError;
 	    		}

@@ -6,7 +6,7 @@ import com.softcore.cim.entity.block.RegulatingCondEq;
  * 补偿类
  *
  */
-public class Compensator extends RegulatingCondEq {
+public class Capacitor extends RegulatingCondEq {
 	public double Capacity;
 
 }

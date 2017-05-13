@@ -202,18 +202,21 @@ public class zjxt_kernel {
 				}
 				
 				ShowDivideLine();
+				
 				mlog.warn(zjxt_msg.GetDateTime() + " 执行周期.");
 				zjxt_CimBuild.Measure.Refresh_ycyx();
-				zjxt_CimBuild.checkYKYTResult();
+				zjxt_State.Refresh(); // 设备状态刷新
+				zjxt_ProtectionTable.Refresh(); // 设备保护刷新
+				zjxt_State.AutoUnLock(); // 设备自动解锁检查
+				zjxt_CimBuild.checkYKYTResult(); //检查调控反馈信息
 				
 				//if (timeTag2 >= 3) {
 				//	timeTag2 = 0;
 					zjxt_Cmd.CmdTraceDeal();
 				//}
 				
-				zjxt_State.AutoUnLock(); // 设备自动解锁检查
-				zjxt_State.Refresh(); // 设备状态刷新
-				zjxt_ProtectionTable.Refresh(); // 设备保护刷新
+				
+				
 				if(TickCount==12) { //每隔一分钟刷新一次
 					TickCount = 0;
 					System.out.println("刷新设备运行时间...");

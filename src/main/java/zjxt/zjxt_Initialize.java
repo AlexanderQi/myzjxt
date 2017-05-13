@@ -12,7 +12,7 @@ import java.util.Map;
 import com.drools.zjxt.kernellib.JkParam;
 import com.drools.zjxt.kernellib.zjxt_CimBuild;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zBreaker;
-import com.drools.zjxt.kernellib.zjxt_CimBuild.zCompensator;
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zCapacitor;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zFeederLine;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zPowerQualityIns;
 import com.drools.zjxt.kernellib.zjxt_CimBuild.zSVG;
@@ -634,7 +634,7 @@ public class zjxt_Initialize {
 						InitError = true;
 						return;
 					}
-					zCompensator obj = zjxt_CimBuild.newCompensator(fLine, false);
+					zCapacitor obj = zjxt_CimBuild.newCapacitor(fLine, false);
 					obj.line = fLine;
 					obj.setName(rSet.getString("name"));
 					obj.setMrID(rSet.getString("id"));
@@ -645,7 +645,7 @@ public class zjxt_Initialize {
 					obj.IsGroup = true;
 					//obj.graphid = fid;
 					obj.capacity = rSet.getDouble("RATEDCAPACITY");
-					
+					obj.volChange = rSet.getFloat("VOLTAGECHANGE");//投切电压变化值
 					Mapping(rSet, obj);
 				}
 				zjxt_msg.show("初始化补偿电容子组...");
@@ -655,7 +655,7 @@ public class zjxt_Initialize {
 					String fcid = rSet.getString("feedcapacitorid");    
 					String iid = rSet.getString("ID");
 					String name = rSet.getString("NAME");
-					zCompensator cg = (zCompensator)zjxt_CimBuild.GetById(fcid);  //取得电容器组
+					zCapacitor cg = (zCapacitor)zjxt_CimBuild.GetById(fcid);  //取得电容器组
 					if(cg == null)
 					{
 						zjxt_msg.showwarn("电容子组【{}】引用了不存在的上级电容器组Id {}",name,fcid);
@@ -664,7 +664,7 @@ public class zjxt_Initialize {
 					}
 					zFeederLine feederLine = (zFeederLine)cg.getFeederLine();
 					
-					zCompensator obj = zjxt_CimBuild.newCompensator(feederLine, true);
+					zCapacitor obj = zjxt_CimBuild.newCapacitor(feederLine, true);
 					obj.line = feederLine;
 					obj.graphid = cg.graphid;
 					obj.setName(name);
@@ -673,11 +673,12 @@ public class zjxt_Initialize {
 					//obj.itemType = rSet.getString("COMPENSATIONMODE");      //电容器所补相位
 					obj.Id = iid;
 					obj.IsGroup = false;
-					obj.VOLTAGECHANGE = rSet.getFloat("VOLTAGECHANGE");  //电压改变量
+					obj.volChange = rSet.getFloat("VOLTAGECHANGE");  //电压改变量
 					obj.RATEDCAPACITY = rSet.getFloat("RATEDCAPACITY");  //容量
 					obj.SWITCHID = rSet.getString("SWITCHYXID");                //控制开关遥信ID。
 					obj.COMPENSATEPOINTID = cg.COMPENSATEPOINTID;
 					obj.capacity = rSet.getDouble("RATEDCAPACITY");
+					
 					obj.VLID = cg.VLID;
 					obj.vlid = cg.vlid;
 					Mapping(rSet, obj);
@@ -1055,7 +1056,7 @@ public class zjxt_Initialize {
 			ResultSet rSet = stat.executeQuery(sql);
 			while(rSet.next()){
 				String eid = rSet.getString("ID");
-				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(eid);  
+				zCapacitor comp = (zCapacitor)zjxt_CimBuild.GetById(eid);  
 				if(comp == null){
 					zjxt_msg.showwarn("Init_CompProperty->电容量测初始化失败! ID:"+eid);
 					continue;
@@ -1076,7 +1077,7 @@ public class zjxt_Initialize {
 			while(rSet.next()) {
 				String eid = rSet.getString("ID");
 				String parentId = rSet.getString("FEEDCAPACITORID");
-				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(parentId);  
+				zCapacitor comp = (zCapacitor)zjxt_CimBuild.GetById(parentId);  
 				if(comp == null) {
 					zjxt_msg.showwarn("Init_CompProperty->电容子组量测初始化失败! 找不到FEEDCAPACITORID:"+parentId);
 					continue;
@@ -1085,7 +1086,7 @@ public class zjxt_Initialize {
 				Mapping(rSet, comp.property);
 				comp.prop = comp.property;
 //				comp.SCHEMEID =  rSet.getString("SCHEMEID");
-				for(zCompensator c:comp.UnitList) {
+				for(zCapacitor c:comp.UnitList) {
 					if(c.Id.equals(eid)) {
 						comp.SWITCHID = rSet.getString("SWITCHYXID");
 					}
@@ -1438,7 +1439,7 @@ public class zjxt_Initialize {
 			rSet = stat.executeQuery(sql);
 			while(rSet.next()){
 				String eid = rSet.getString("ID");
-				zCompensator comp = (zCompensator)zjxt_CimBuild.GetById(eid);  
+				zCapacitor comp = (zCapacitor)zjxt_CimBuild.GetById(eid);  
 				if(comp == null){
 					zjxt_msg.showwarn("Init_CompProperty->电容参数初始化失败! ID:"+eid);
 					continue;
