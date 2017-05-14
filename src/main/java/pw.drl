@@ -368,6 +368,8 @@ function void sendYT(Equipment e, double value, String info, String ytkind) {
 			if(Math.abs(e.workMode-value) > 0.1f) {
 				e.prop.setyt(ytkind, (float)value, kind, zjxt_YTKind.WORK_MODE + zjxt_msg.YaoTiao, info, head+info);
 				e.prop.SetTarget(e.workMode, (float)value/1000);
+			}else{
+				zjxt_msg.show("【{}】工作模式已设置",e.getName());	
 			}
 		}
 	}
@@ -531,7 +533,7 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 	String ename = e.getName();
 	
 	if(e.U > e.limit.upup) { //电压越上限
-		zjxt_msg.show("节点【{}】当前电压越考核上限, U：{}V, 考核上限：{}V", e.getName(), e.U, e.limit.upup);
+		zjxt_msg.show("节点【{}】当前电压越考核上限, U：{}V, 考核上限：{}V", ename, e.U, e.limit.upup);
 		boolean ret =  handleLimitUp(e);  //本级处理
 		if(!ret) //本级处理不了,找上级处理
 		{
@@ -586,7 +588,14 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 			else
 			  zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越上限数量多于越下限数量,不能进行升压处理.",pname);
 		}
-	}
+	}else if(e.U < e.limit.up && e.U > e.limit.lo){//电压情况良好
+		zjxt_msg.show("节点【{}】当前电压良好, U：{}V, 将设为功率因数优先模式。", ename, e.U);
+		zjxt_CommandContent commandContent = new zjxt_CommandContent(e.controlState);
+		commandContent.setAction("调节【{}】工作模式为功率因数优先模式", ename);
+		commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越下限,可投入一组电容", e.U, e.Q, e.PF);
+		commandContent.setExpect("设备工作模式处于功率因数优先模式.");
+		sendYT(e, e.controlParam.cosCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);				
+	} 
 }
 
 

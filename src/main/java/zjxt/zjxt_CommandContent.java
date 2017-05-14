@@ -42,7 +42,7 @@ public class zjxt_CommandContent {
 	@SuppressWarnings("restriction")
 	public void setReason(String reason, Object... params) {
 		String info = MessageFormatter.arrayFormat(reason, params).getMessage();
-		this.reason = "原因描述:" + info + ";";
+		this.reason = "原因:" + info + ";";
 	}
 
 	public String getExpect() {
@@ -52,7 +52,7 @@ public class zjxt_CommandContent {
 	@SuppressWarnings("restriction")
 	public void setExpect(String expect, Object... params) {
 		String info = MessageFormatter.arrayFormat(expect, params).getMessage();
-		this.expect = "预期效果:" + info + ";";
+		this.expect = "预期 " + info + ";";
 	}
 	
 	@Override

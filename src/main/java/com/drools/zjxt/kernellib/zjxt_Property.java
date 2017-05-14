@@ -619,7 +619,8 @@ public class zjxt_Property {
 
 	public void SendLTCmd(String name, float lowLimit, float upLimit)
 			throws Exception {
-		zjxt_Cmd.SendLTCmd(name, lowLimit, upLimit);
+		//zjxt_Cmd.SendLTCmd(name, lowLimit, upLimit);
+		zjxt_msg.showwarn("此版本不支持发送联调命令");
 	}
 
 	public static class PropertyItem {

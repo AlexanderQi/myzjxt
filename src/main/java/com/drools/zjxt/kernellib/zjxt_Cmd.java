@@ -7,6 +7,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -30,8 +31,8 @@ public class zjxt_Cmd {
 	public static SimpleDateFormat df = new SimpleDateFormat(
 			"yyyy-MM-dd HH:mm:ss");
 
-	public static int DelExpireCmdObj() {
-		java.util.Date date = new java.util.Date();
+	public static int DelExpireCmdObj()throws Exception {
+		java.util.Date date = getDbTime();//new java.util.Date();
 		int ct = 0;
 		for (int i = cmdlist.size() - 1; i >= 0; i--) {
 			long between = (date.getTime() - cmdlist.get(i).DateTime.getTime()) / 1000;
@@ -220,6 +221,8 @@ public class zjxt_Cmd {
 		}
 	}
 
+	
+	
 	public static void CmdTraceDeal() {
 		try {
 			List failCmdList = new ArrayList();
@@ -232,9 +235,9 @@ public class zjxt_Cmd {
 			zjxt_msg.showwarn("正在跟踪的命令数量:" + cmdct);
 
 			zjxt_msg.showwarn("检查命令情况...");
-			String d = df.format(new java.util.Date());
+			//String d = df.format(getDbTime());
 			String sql;
-			sql = "delete from TBLCOMMAND  where time_to_sec(timediff('"+d+"',cmddatetime)) >= 300 or dealtag=7";// 300s后命令过期处理
+			sql = "delete from TBLCOMMAND  where time_to_sec(timediff(now(),cmddatetime)) >= 300 or dealtag=7";// 300s后命令过期处理
 //			sql = "delete from TBLCOMMAND t where DateDiff(ss,t.cmddatetime,'"
 //					+ d + "')>=300 or dealtag=7"; 
 			state.execute(sql);
@@ -247,7 +250,7 @@ public class zjxt_Cmd {
 			ResultSet rs = state.executeQuery(sql);
 			rs.last();
 			int size = rs.getRow();
-			zjxt_msg.show("实时库内存中命令对象数:" + size);
+			zjxt_msg.show("库中命令数量:" + size);
 			if(size <= 0) {
 //				zjxt_CimBuild.canControl = true;
 				for(int i=0; i<zjxt_CimBuild.cbList.size(); i++) {
@@ -464,23 +467,36 @@ public class zjxt_Cmd {
 		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 		PreparedStatement ps = null;
 		String sql = "INSERT INTO TBLCOMMANDRECORD (schemeid,cmddatetime,cmdelementid,cmdelementstyle,cmdelementname,cmdkind,cmdresult, soundlist,sendtag,showtag)"
-				+ "VALUES(1, ?, ?, 0, ?, ?, ?, ?, 0, 0)";
+				+ "VALUES(1, now(), ?, 0, ?, ?, ?, ?, 0, 0)";
 		ps = conn.prepareStatement(sql);
 //		ps.setLong(1, id);
-		java.util.Date date = new java.util.Date();
-		ps.setTimestamp(1, new Timestamp(date.getTime()));
-		ps.setString(2, elementid);
+		//java.util.Date date = new java.util.Date();
+		//ps.setTimestamp(1, new Timestamp(date.getTime()));
+		ps.setString(1, elementid);
 		String ename = psr.getName();
-		ps.setString(3, ename);
-		ps.setString(4, zjxt_msg.TIP);
-		ps.setString(5, result);
-		ps.setString(6, Sound);
+		ps.setString(2, ename);
+		ps.setString(3, zjxt_msg.TIP);
+		ps.setString(4, result);
+		ps.setString(5, Sound);
 		ps.execute();
 		conn.close();
 		return id;
 	}
 	
-	public static void SendYkCmd(String elementid, int ca, int czh, int dh,
+	public static java.util.Date getDbTime() throws Exception{
+		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
+		Statement st = conn.createStatement();
+		String sql = "select now();";	
+		ResultSet rs = st.executeQuery(sql);
+		rs.first();
+		java.sql.Timestamp d = rs.getTimestamp(1);
+		java.util.Date ud = new Date(d.getTime());
+		st.close();
+		conn.close();
+		return ud;
+	}
+	
+	public static void SendYkCmd(String elementid, int channel, int czh, int dh,
 			int ykValue, long adviceId) throws Exception {
 		
 		if (!zjxt_State.CanControl(elementid))
@@ -488,18 +504,19 @@ public class zjxt_Cmd {
 		PowerSystemResource psr = zjxt_CimBuild.GetById(elementid);
 		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 		PreparedStatement ps = null;
-		String sql = "INSERT INTO TBLCOMMAND (id,controlarea,schemeid,schemeindex,cmddatetime,czh,ykyth,ykytvalue,ykyttype,dealtag,cmdelementid)"
-				+ "VALUES(?, ?, '1', '1', ?, ?, ?, ?, 0, 0,?)";
+		String sql = "INSERT INTO TBLCOMMAND (id,controlarea,schemeid,schemeindex,cmddatetime,czh,ykyth,ykytvalue,ykyttype,dealtag,cmdelementid,channel)"
+				+ "VALUES(?, ?, '1', '1', now(), ?, ?, ?, 0, 0,?)";
 		ps = conn.prepareStatement(sql);
-		java.util.Date currDate = new java.util.Date();
+		java.util.Date currDate = getDbTime();//new java.util.Date();
 		ps.setLong(1, adviceId);
-		String ctime = df.format(currDate);
-		ps.setInt(2, ca);
-		ps.setString(3, ctime);
-		ps.setInt(4, czh);
-		ps.setInt(5, dh);
-		ps.setFloat(6, ykValue);
-		ps.setString(7, elementid);
+		//String ctime = df.format(currDate);
+		ps.setInt(2, channel);
+		//ps.setString(3, ctime);
+		ps.setInt(3, czh);
+		ps.setInt(4, dh);
+		ps.setFloat(5, ykValue);
+		ps.setString(6, elementid);
+		ps.setInt(7, channel);
 		ps.execute();
 		conn.close();
 		AddCmdObj("" + adviceId, elementid, psr.getName() + zjxt_msg.YaoKong
@@ -513,25 +530,26 @@ public class zjxt_Cmd {
 
 	}
 
-	public static void SendYtCmd(String elementid, int ca, int czh, int dh,
+	public static void SendYtCmd(String elementid, int channel, int czh, int dh,
 			float ytValue, long adviceId) throws Exception {
 		if (!zjxt_State.CanControl(elementid))
 			return;
 		PowerSystemResource psr = zjxt_CimBuild.GetById(elementid);
 		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 		PreparedStatement ps = null;
-		String sql = "INSERT INTO TBLCOMMAND (id,controlarea,schemeid,schemeindex,cmddatetime,czh,ykyth,ytvalue,ykyttype,dealtag,cmdelementid)"
-				+ "VALUES(?, ?, '1', '1', ?, ?, ?, ?, 1, 0,?)";
+		String sql = "INSERT INTO TBLCOMMAND (id,controlarea,schemeid,schemeindex,cmddatetime,czh,ykyth,ytvalue,ykyttype,dealtag,cmdelementid,channel)"
+				+ "VALUES(?, ?, '1', '1', now(), ?, ?, ?, 1, 0,?,?)";
 		ps = conn.prepareStatement(sql);
-		java.util.Date currDate = new java.util.Date();
+		java.util.Date currDate = getDbTime();//new java.util.Date();
 		ps.setLong(1, adviceId);
-		String ctime = df.format(currDate);
-		ps.setInt(2, ca);
-		ps.setString(3, ctime);
-		ps.setInt(4, czh);
-		ps.setInt(5, dh);
-		ps.setFloat(6, ytValue);
-		ps.setString(7, elementid);
+		//String ctime = df.format(currDate);
+		ps.setInt(2, channel);
+		//ps.setString(3, ctime);
+		ps.setInt(3, czh);
+		ps.setInt(4, dh);
+		ps.setFloat(5, ytValue);
+		ps.setString(6, elementid);
+		ps.setInt(7,channel);
 		ps.execute();
 		conn.close();
 		AddCmdObj("" + adviceId, elementid, psr.getName() + zjxt_msg.YaoTiao
@@ -542,36 +560,36 @@ public class zjxt_Cmd {
 		// ps.close();
 	}
 
-	public static void SendLTCmd(String name, float lowLimit, float upLimit)
-			throws Exception {
-		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
-		String sql = "delete from tblltxx";
-		Statement st = conn.createStatement();
-		st.execute(sql);
-		st.close();
-		java.util.Date dd = new java.util.Date();
-		String stime = df.format(dd);
-		long tt = dd.getTime() + 15 * 60 * 1000; // +15分钟
-		dd.setTime(tt);
-		String etime = df.format(dd);
-		sql = "insert into tblltxx(substationname,l_limit,h_limit,starttime,endtime)"
-				+ " values('"
-				+ name
-				+ "',"
-				+ lowLimit
-				+ ","
-				+ upLimit
-				+ ",to_date('"
-				+ stime
-				+ "','yyyy-mm-dd hh24:mi:ss'),to_date('"
-				+ etime + "','yyyy-mm-dd hh24:mi:ss'))";
-		st = conn.createStatement();
-		st.execute(sql);
-		conn.close();
-
-		zjxt_msg.show("*联调命令发送成功");
-		// ps.close();
-	}
+//	public static void SendLTCmd(String name, float lowLimit, float upLimit)
+//			throws Exception {
+//		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
+//		String sql = "delete from tblltxx";
+//		Statement st = conn.createStatement();
+//		st.execute(sql);
+//		st.close();
+//		java.util.Date dd = new java.util.Date();
+//		String stime = df.format(dd);
+//		long tt = dd.getTime() + 15 * 60 * 1000; // +15分钟
+//		dd.setTime(tt);
+//		String etime = df.format(dd);
+//		sql = "insert into tblltxx(substationname,l_limit,h_limit,starttime,endtime)"
+//				+ " values('"
+//				+ name
+//				+ "',"
+//				+ lowLimit
+//				+ ","
+//				+ upLimit
+//				+ ",to_date('"
+//				+ stime
+//				+ "','yyyy-mm-dd hh24:mi:ss'),to_date('"
+//				+ etime + "','yyyy-mm-dd hh24:mi:ss'))";
+//		st = conn.createStatement();
+//		st.execute(sql);
+//		conn.close();
+//
+//		zjxt_msg.show("*联调命令发送成功");
+//		// ps.close();
+//	}
 
 	public static class CmdObj {
 		public String CmdId;
