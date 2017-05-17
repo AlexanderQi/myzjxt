@@ -765,7 +765,7 @@ public class zjxt_State {
 		PowerSystemResource psr = zjxt_CimBuild.GetById(elementId); //对于电容器组，要额外考虑组和电容单元的状态。
 		if(psr.getClass() == zCapacitor.class){
 			zCapacitor comp = (zCapacitor)psr;
-			if(!comp.IsGroup){       //非电容器组
+			if(!comp.HasItems){       //非电容器组
 				zCapacitor group = comp.MyGroup; //取组设备
 				LockReason = GetLockState(group.getMrID());  //取电容组状态
 			}

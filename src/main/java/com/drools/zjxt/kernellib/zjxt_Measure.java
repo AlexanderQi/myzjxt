@@ -95,7 +95,7 @@ public class zjxt_Measure {
 		ytlist.clear();
 	}
 
-	public void Addyx(String idString, int ca, int czh, int yxh, String name)
+	public zjxt_yx Addyx(String idString, int ca, int czh, int yxh, String name)
 			throws Exception {
 		// for (Iterator<zjxt_yx> iterator = yxlist.iterator();
 		// iterator.hasNext();) {
@@ -117,9 +117,10 @@ public class zjxt_Measure {
 		yx.Name = name;
 		// yxlist.add(yx);
 		yxMap.put(yx.idString, yx);
+		return yx;
 	}
 
-	public void Addyc(String idString, int ca, int czh, int ych, float offset,
+	public zjxt_yc Addyc(String idString, int ca, int czh, int ych, float offset,
 			float ratio, String name, int valueStyle) throws Exception {
 		// for (Iterator<zjxt_yc> iterator = yclist.iterator();
 		// iterator.hasNext();) {
@@ -144,9 +145,10 @@ public class zjxt_Measure {
 		yc.valueStyle = valueStyle;
 		// yclist.add(yc);
 		ycMap.put(yc.idString, yc);
+		return yc;
 	}
 
-	public void Addyk(String idString, String elementId, int ca, int czh_up,
+	public zjxt_yk Addyk(String idString, String elementId, int ca, int czh_up,
 			int czh_down, int dh_up, int dh_down, int fixv_up, int fixv_down,
 			String ykname, String ykkind) throws Exception {
 		for (Iterator<zjxt_yk> iterator = yklist.iterator(); iterator.hasNext();) {
@@ -168,6 +170,7 @@ public class zjxt_Measure {
 		yk.FixValue_down = fixv_down;
 		yk.FixValue_upper = fixv_up;
 		yklist.add(yk);
+		return yk;
 	}
 
 	public zjxt_yt Addyt(String idString, String elementId, String ytkind,
@@ -614,18 +617,20 @@ public class zjxt_Measure {
 			Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 			Statement statement = conn.createStatement();
 			ResultSet rSet = statement
-					.executeQuery("select t1.CONTROLAREA, t1.czh,t1.ych,t1.id, t1.name,t1.valuestyle from tblycvalue t1 where t1.czh IS NOT NULL AND t1.czh <> ''");
+					.executeQuery("select t1.CONTROLAREA, t1.czh,t1.ych,t1.id, t1.name,t1.valuestyle,t1.channel from tblycvalue t1 where t1.czh IS NOT NULL AND t1.czh <> ''");
 			while (rSet.next()) {
 
-				Addyc(rSet.getString(4), rSet.getInt(1), rSet.getInt(2),
+				zjxt_yc yc = Addyc(rSet.getString(4), rSet.getInt(1), rSet.getInt(2),
 						rSet.getInt(3), 0f, 1f, rSet.getString(5),
 						rSet.getInt(6));
+				yc.channel = rSet.getInt(7);
 			}
 			rSet = statement
-					.executeQuery("select t1.CONTROLAREA, t1.czh,t1.yxh,t1.id,t1.name from tblyxvalue t1");
+					.executeQuery("select t1.CONTROLAREA, t1.czh,t1.yxh,t1.id,t1.name,t1.channel from tblyxvalue t1");
 			while (rSet.next()) {
-				Addyx(rSet.getString(4), rSet.getInt(1), rSet.getInt(2),
+				zjxt_yx yx = Addyx(rSet.getString(4), rSet.getInt(1), rSet.getInt(2),
 						rSet.getInt(3), rSet.getString(5));
+				yx.channel = rSet.getInt(6);
 			}
 			conn.close();
 		} catch (Exception e) {
@@ -652,12 +657,13 @@ public class zjxt_Measure {
 				if (rSet.getString("YKKIND") != null) {
 					ykkind = rSet.getString("YKKIND");
 				}
-				Addyk(rSet.getString("ID"), eid, rSet.getInt("CONTROLAREA"),
+				zjxt_yk yk = Addyk(rSet.getString("ID"), eid, rSet.getInt("CONTROLAREA"),
 						rSet.getInt("UPPER_CZH"), rSet.getInt("LOWER_CZH"),
 						rSet.getInt("UPPER_YKYTH"), rSet.getInt("LOWER_YKYTH"),
 						rSet.getInt("UPPER_YKYTVALUE"),
 						rSet.getInt("LOWER_YKYTVALUE"), rSet.getString(ykname),
 						ykkind);
+				yk.channel = rSet.getInt("CHANNEL");
 
 			}
 			conn.close();
@@ -685,7 +691,7 @@ public class zjxt_Measure {
 						rSet.getString("CMDELEMENTID"), ytkind.toLowerCase(),
 						rSet.getInt("CONTROLAREA"), rSet.getInt("CZH"),
 						rSet.getInt("YTH"), rSet.getFloat("MULTIPLEVALUE"));
-
+				yt.channel = rSet.getInt("CHANNEL");
 				PowerSystemResource resource = zjxt_CimBuild
 						.GetById(yt.elementId);
 				if (resource == null) {
@@ -694,6 +700,7 @@ public class zjxt_Measure {
 					zjxt_msg.showwarn(bugstr);
 					continue;
 				}
+				
 				if (resource.getClass() == zCapacitor.class) {
 					zCapacitor compensator = (zCapacitor) resource;
 					compensator.IsYT = true;
@@ -724,6 +731,7 @@ public class zjxt_Measure {
 		public int ych;
 		public int czh;
 		public int ca;
+		public int channel;
 		public float Value;
 		public float OldValue;
 		public float Offset;
@@ -740,6 +748,7 @@ public class zjxt_Measure {
 		public int yxh;
 		public int czh;
 		public int ca;
+		public int channel;
 		public int Value;
 		public int OldValue;
 		public String idString;
@@ -755,6 +764,7 @@ public class zjxt_Measure {
 		public int czh_upper;
 		public int czh_down;
 		public int ca;
+		public int channel;
 		public int FixValue_upper;
 		public int FixValue_down;
 		public String id;
@@ -767,6 +777,7 @@ public class zjxt_Measure {
 		public int dh;
 		public int czh;
 		public int ca;
+		public int channel;
 		public String ytKind;
 		public String id;
 		public String Name;

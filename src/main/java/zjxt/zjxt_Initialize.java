@@ -65,7 +65,7 @@ public class zjxt_Initialize {
 			}else {
 				Init_TransformerProperty();//配网变压器
 				Init_TyqProperty();	//配网调压器
-				Init_CompProperty(); //配网电容器
+				Init_CapaProperty(); //配网电容器
 				Init_ComControlParam();  //配网电容器控制参数
 
 				//Init_TfProperty();	
@@ -622,7 +622,6 @@ public class zjxt_Initialize {
 				sql = "SELECT *,t2.NOMINALVOLTAGE FROM TBLFEEDCAPACITOR t1 left join tblvoltagelevel t2 on t1.VOLTAGELEVELID=t2.id";
 				rSet = stat.executeQuery(sql);
 				while(rSet.next()){
-//					String fid = rSet.getString("GRAPHID");           //暂用feedgraph代理feedline
 					String fid = rSet.getString("FEEDID");
 					String name = rSet.getString("NAME");
 					String id = rSet.getString("id");
@@ -642,10 +641,11 @@ public class zjxt_Initialize {
 					obj.VLID = rSet.getString("VOLTAGELEVELID");
 					obj.vlid = rSet.getInt("NOMINALVOLTAGE");
 					obj.voltage = voltageMap.get(obj.VLID);
-					obj.IsGroup = true;
-					//obj.graphid = fid;
+					obj.HasItems = rSet.getBoolean("HASITEMS");//是否包含子组，一般高压电容分为两组子电容，需要分别投切。
+					obj.IsItem = false;
 					obj.capacity = rSet.getDouble("RATEDCAPACITY");
 					obj.volChange = rSet.getFloat("VOLTAGECHANGE");//投切电压变化值
+					
 					Mapping(rSet, obj);
 				}
 				zjxt_msg.show("初始化补偿电容子组...");
@@ -672,17 +672,19 @@ public class zjxt_Initialize {
 					//obj.AarrayType = rSet.getString("ArrayType");  //电容器组号
 					//obj.itemType = rSet.getString("COMPENSATIONMODE");      //电容器所补相位
 					obj.Id = iid;
-					obj.IsGroup = false;
+					obj.HasItems = false;
+					obj.IsItem = true;
 					obj.volChange = rSet.getFloat("VOLTAGECHANGE");  //电压改变量
 					obj.RATEDCAPACITY = rSet.getFloat("RATEDCAPACITY");  //容量
 					obj.SWITCHID = rSet.getString("SWITCHYXID");                //控制开关遥信ID。
 					obj.COMPENSATEPOINTID = cg.COMPENSATEPOINTID;
 					obj.capacity = rSet.getDouble("RATEDCAPACITY");
+					obj.MyGroup = cg;
 					
 					obj.VLID = cg.VLID;
 					obj.vlid = cg.vlid;
 					Mapping(rSet, obj);
-					cg.AddUnit(obj);
+					cg.AddUnit(obj);			
 				}
 				
 				zjxt_msg.show("初始化配变...");
@@ -1047,7 +1049,7 @@ public class zjxt_Initialize {
 		}
 	}
 	
-	public static void Init_CompProperty()throws Exception{
+	public static void Init_CapaProperty()throws Exception{
 		try {
 			zjxt_msg.show("初始化配电电容器量测...");
 			Connection connection = zjxt_ConnectionPool.Instance().getConnection();

@@ -420,18 +420,18 @@ public class zjxt_Cmd {
 		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 		PreparedStatement ps = null;
 		String sql = "INSERT INTO TBLCOMMANDRECORD (schemeid,cmddatetime,cmdelementid,cmdelementstyle,cmdelementname,cmdcontent,cmdkind,cmdaction,soundlist,sendtag,showtag)"
-				+ "VALUES(1, ?, ?, 0, ?, ?, ?, ?, ?,0,0)";
+				+ "VALUES(1, now(), ?, 0, ?, ?, ?, ?, ?,0,0)";
 		ps = conn.prepareStatement(sql);
 //		ps.setLong(1, id);
-		java.util.Date date = new java.util.Date();
-		ps.setTimestamp(1, new Timestamp(date.getTime()));
-		ps.setString(2, elementid);
+//		java.util.Date date = new java.util.Date();
+//		ps.setTimestamp(1, new Timestamp(date.getTime()));
+		ps.setString(1, elementid);
 		String ename = psr.getName();
-		ps.setString(3, ename);
-		ps.setString(4, CmdContent);
-		ps.setString(5, Kind);
-		ps.setString(6, Action);
-		ps.setString(7, Sound);
+		ps.setString(2, ename);
+		ps.setString(3, CmdContent);
+		ps.setString(4, Kind);
+		ps.setString(5, Action);
+		ps.setString(6, Sound);
 		ps.execute();
 		conn.close();
 		if (Kind.equals(zjxt_msg.JianYi))

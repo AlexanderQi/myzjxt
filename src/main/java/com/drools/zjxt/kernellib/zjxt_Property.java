@@ -335,7 +335,13 @@ public class zjxt_Property {
 		String elementId = Owner.getMrID();
 		long aid = 0;
 		if(Owner instanceof zCapacitor) { //电容器特殊处理
-			aid = zjxt_Cmd.SendAdviceSound(((zCapacitor) Owner).GroupId, Kind, Action, CmdContent,
+			String GroupId =null;
+			zCapacitor cap = (zCapacitor)Owner;
+			if(cap.IsItem)
+				GroupId = cap.MyGroup.Id;
+			else
+				GroupId = cap.Id;
+			aid = zjxt_Cmd.SendAdviceSound(GroupId, Kind, Action, CmdContent,
 					Sound);
 		} else {
 			aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
@@ -353,10 +359,10 @@ public class zjxt_Property {
 				return false;
 			}
 			if (Action.equals("投入") || Action.equals("升档")) // 投，切，升，降
-				zjxt_Cmd.SendYkCmd(elementId, yk.ca, yk.czh_upper, yk.dh_upper,
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper,
 						ykValue, aid);
 			else {
-				zjxt_Cmd.SendYkCmd(elementId, yk.ca, yk.czh_down, yk.dh_down,
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down,
 						ykValue, aid);
 			}
 		}
@@ -378,10 +384,10 @@ public class zjxt_Property {
 				return false;
 			}
 			if (Action.equals("投入") || Action.equals("升档")) // 投，切，升，降
-				zjxt_Cmd.SendYkCmd(elementId, yk.ca, yk.czh_upper, yk.dh_upper,
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper,
 						yk.FixValue_upper, aid);
 			else {
-				zjxt_Cmd.SendYkCmd(elementId, yk.ca, yk.czh_down, yk.dh_down,
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down,
 						yk.FixValue_down, aid);
 			}
 		}
@@ -402,10 +408,10 @@ public class zjxt_Property {
 				return false;
 			}
 			if (Action.equals("投入") || Action.equals("升档")) // 投，切，升，降
-				zjxt_Cmd.SendYkCmd(elementId, yk.ca, yk.czh_upper, yk.dh_upper,
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper,
 						yk.FixValue_upper, aid);
 			else {
-				zjxt_Cmd.SendYkCmd(elementId, yk.ca, yk.czh_down, yk.dh_down,
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down,
 						yk.FixValue_down, aid);
 			}
 		}
@@ -435,7 +441,7 @@ public class zjxt_Property {
 				zjxt_msg.showwarn(CmdContent + "因 yxid:" + yxid + " 不存在,无法执行.");
 				return false;
 			}
-			zjxt_Cmd.SendYkCmd(elementId, yx.ca, yx.czh, yx.yxh, ykValue, aid);
+			zjxt_Cmd.SendYkCmd(elementId, yx.channel, yx.czh, yx.yxh, ykValue, aid);
 		}
 		return true;
 	}
@@ -453,8 +459,8 @@ public class zjxt_Property {
 					+ " 没有遥调号,无法操作!");
 			return false;
 		}
-		if (Kind.equals(zjxt_msg.KongZhi)) {// Kind ：控制或建议
-			zjxt_Cmd.SendYtCmd(elementId, yt.ca, yt.czh, yt.dh, ytValue*yt.multiplevalue, aid);
+		if (Kind.equals(zjxt_msg.KongZhi)) {// Kind ：控制
+			zjxt_Cmd.SendYtCmd(elementId, yt.channel, yt.czh, yt.dh, ytValue*yt.multiplevalue, aid);
 		}
 		return true;
 	}

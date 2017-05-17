@@ -1077,11 +1077,12 @@ public class zjxt_CimBuild {
 		public String COMPENSATEPOINTID; // 补偿点设备ID，通常为关联配变ID
 		public String SWITCHID; // 电容开关遥信ID
 		public boolean IsYT = false; // 是否是遥调型的电容设备。
-		public boolean IsGroup = true; // 是否是电容器组，如果是则具体控制在其UnitList中的具体电容器上。
-		public String GroupId = "-1"; // 电容器组id,如果为-1表示是当前电容是电容器组，否则值为电容器单元的上级电容组的id
+		public boolean HasItems = false; // 是否有电容器子组，如果是则具体控制在其UnitList中的具体电容器上。
+		public boolean IsItem = false;  //是否是电容子组。
+		//public String GroupId = "-1"; // 电容器组id,如果为-1表示是当前电容是电容器组，否则值为电容器单元的上级电容组的id
 		public List<zCapacitor> UnitList;
 		public zCapacitor MyGroup = null;
-		// public String AarrayType = ""; // 组号
+		
 		public String itemType = ""; // 补偿方式：共补,A,B,C
 		
 		public float RATEDCAPACITY; // 容量
@@ -1096,24 +1097,26 @@ public class zjxt_CimBuild {
 
 		public void AddUnit(zCapacitor unit) {
 			UnitList.add(unit);
-			unit.IsGroup = false;
+			unit.HasItems = false;
 			unit.MyGroup = this;
 		}
+		
+		
 
-		public int GetSwitch() {
-			if (SWITCHID == null) {
-				zjxt_msg.showwarn(getName() + " id:" + getMrID()
-						+ " SWITCHID未填写.");
-				return -1;
-			}
-			zjxt_CimBuild.zBreaker breaker = (zjxt_CimBuild.zBreaker) zjxt_CimBuild
-					.GetById(SWITCHID);
-			if (breaker == null) {
-				zjxt_msg.showwarn(getName() + " 电容关联开关为空. 开关id:" + SWITCHID);
-				return -1;
-			}
-			return Measure.GetYxValue(breaker.YXID);
-		}
+//		public int GetSwitch() {
+//			if (SWITCHID == null) {
+//				zjxt_msg.showwarn(getName() + " id:" + getMrID()
+//						+ " SWITCHID未填写.");
+//				return -1;
+//			}
+//			zjxt_CimBuild.zBreaker breaker = (zjxt_CimBuild.zBreaker) zjxt_CimBuild
+//					.GetById(SWITCHID);
+//			if (breaker == null) {
+//				zjxt_msg.showwarn(getName() + " 电容关联开关为空. 开关id:" + SWITCHID);
+//				return -1;
+//			}
+//			return Measure.GetYxValue(breaker.YXID);
+//		}
 
 		public FeederLine getFeederLine() {
 			return feederLine;
