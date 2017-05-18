@@ -72,8 +72,8 @@ public class zjxt_CimBuild {
 				return obj;
 			} else {
 				if(obj instanceof zCapacitor) {
-					List<zCapacitor> list = ((zCapacitor) obj).UnitList;
-					for(int i=0; i<((zCapacitor) obj).UnitList.size(); i++) {
+					List<zCapacitor> list = ((zCapacitor) obj).ItemList;
+					for(int i=0; i<((zCapacitor) obj).ItemList.size(); i++) {
 						if(list.get(i).getMrID().equals(Id)) {
 							return obj;
 						}
@@ -1075,12 +1075,12 @@ public class zjxt_CimBuild {
 		private FeederLine feederLine;
 		public String SCHEMEID; // 方案ID 某些项目(祥云)用来区别虚拟电容。
 		public String COMPENSATEPOINTID; // 补偿点设备ID，通常为关联配变ID
-		public String SWITCHID; // 电容开关遥信ID
+		public String SWITCHYXID; // 电容开关遥信ID
 		public boolean IsYT = false; // 是否是遥调型的电容设备。
 		public boolean HasItems = false; // 是否有电容器子组，如果是则具体控制在其UnitList中的具体电容器上。
 		public boolean IsItem = false;  //是否是电容子组。
 		//public String GroupId = "-1"; // 电容器组id,如果为-1表示是当前电容是电容器组，否则值为电容器单元的上级电容组的id
-		public List<zCapacitor> UnitList;
+		public List<zCapacitor> ItemList;
 		public zCapacitor MyGroup = null;
 		
 		public String itemType = ""; // 补偿方式：共补,A,B,C
@@ -1089,19 +1089,37 @@ public class zjxt_CimBuild {
 		public String VLID = ""; // 电压等级ID
 		// private float weighting = 0.0f; // 计算用权重
 		public float calc_vol = 0f; // 预算后电压
-
+		
+		
+		
+		
+		
 		public zCapacitor() {
 			super();
-			UnitList = new ArrayList<zjxt_CimBuild.zCapacitor>();
+			ItemList = new ArrayList<zjxt_CimBuild.zCapacitor>();
 		}
 
-		public void AddUnit(zCapacitor unit) {
-			UnitList.add(unit);
-			unit.HasItems = false;
-			unit.MyGroup = this;
+		public void addItem(zCapacitor item) {
+			ItemList.add(item);
+			item.HasItems = false;
+			item.MyGroup = this;
 		}
 		
-		
+		/**
+		 * switchStat 开关状态
+		 * @return 返回一个可以开关状态等于switchStat值的电容子组
+		 */
+		public zCapacitor getActItem(int switchStat) {
+			if (IsItem)
+				return null;
+		    	for(int i=0;i<ItemList.size();i++){
+		    		zCapacitor cap = ItemList.get(i); 			
+		    		if(cap.prop.getyxById(cap.SWITCHYXID) == switchStat){
+		    			return cap;
+		    		}
+		    	}
+		    	return null;
+		}
 
 //		public int GetSwitch() {
 //			if (SWITCHID == null) {

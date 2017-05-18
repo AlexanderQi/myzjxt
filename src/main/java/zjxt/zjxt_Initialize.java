@@ -676,7 +676,7 @@ public class zjxt_Initialize {
 					obj.IsItem = true;
 					obj.volChange = rSet.getFloat("VOLTAGECHANGE");  //电压改变量
 					obj.RATEDCAPACITY = rSet.getFloat("RATEDCAPACITY");  //容量
-					obj.SWITCHID = rSet.getString("SWITCHYXID");                //控制开关遥信ID。
+					obj.SWITCHYXID = rSet.getString("SWITCHYXID");                //控制开关遥信ID。
 					obj.COMPENSATEPOINTID = cg.COMPENSATEPOINTID;
 					obj.capacity = rSet.getDouble("RATEDCAPACITY");
 					obj.MyGroup = cg;
@@ -684,7 +684,7 @@ public class zjxt_Initialize {
 					obj.VLID = cg.VLID;
 					obj.vlid = cg.vlid;
 					Mapping(rSet, obj);
-					cg.AddUnit(obj);			
+					cg.addItem(obj);			
 				}
 				
 				zjxt_msg.show("初始化配变...");
@@ -1064,7 +1064,7 @@ public class zjxt_Initialize {
 					continue;
 				}
 				comp.prop = comp.property;	
-				comp.SWITCHID = rSet.getString("SWITCHYXID");
+				comp.SWITCHYXID = rSet.getString("SWITCHYXID");
 				//comp.SCHEMEID =  rSet.getString("SCHEMEID");
 				comp.parentId = topo.zNodeList.get(eid).parentId;
 				comp.Id = eid;
@@ -1088,9 +1088,9 @@ public class zjxt_Initialize {
 				Mapping(rSet, comp.property);
 				comp.prop = comp.property;
 //				comp.SCHEMEID =  rSet.getString("SCHEMEID");
-				for(zCapacitor c:comp.UnitList) {
+				for(zCapacitor c:comp.ItemList) {
 					if(c.Id.equals(eid)) {
-						comp.SWITCHID = rSet.getString("SWITCHYXID");
+						comp.SWITCHYXID = rSet.getString("SWITCHYXID");
 					}
 				}
 			}	
