@@ -850,14 +850,16 @@ public class zjxt_Initialize {
 		if(IsYcType){
 			zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(MeasureId);
 			if(yc == null){
-				zjxt_msg.showwarn("addProperty->该YCID不存在, 量测名:"+ProName);
+				String Name = property.Owner.getName();
+				zjxt_msg.showwarn("[{}]该YCID[{}]不存在, 量测名:{}",Name,MeasureId,ProName);
 				return;
 			}
 			property.Add(MeasureId, ProName, yc.ca, yc.czh, yc.ych);
 		}else{
 			zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(MeasureId);
 			if(yx == null){
-				zjxt_msg.showwarn("addProperty->该YXID不存在于遥信表:"+MeasureId+" 量测名:"+ProName);
+				String Name = property.Owner.getName();
+				zjxt_msg.showwarn("[{}]该YXID[{}]不存在, 量测名:{}",Name,MeasureId,ProName);
 				return;
 			}
 
@@ -1080,8 +1082,9 @@ public class zjxt_Initialize {
 				String eid = rSet.getString("ID");
 				String parentId = rSet.getString("FEEDCAPACITORID");
 				zCapacitor comp = (zCapacitor)zjxt_CimBuild.GetById(parentId);  
+				comp = comp.getItem(eid); //电容子组对象只能从电容器对象中获得。
 				if(comp == null) {
-					zjxt_msg.showwarn("Init_CompProperty->电容子组量测初始化失败! 找不到FEEDCAPACITORID:"+parentId);
+					zjxt_msg.showwarn("Init_CompProperty->电容子组量测初始化失败! 找不到电容子组ID:"+eid);
 					continue;
 				}
 				

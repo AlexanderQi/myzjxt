@@ -117,12 +117,12 @@ rule "feederLine"
         	size = equipments.size();
         	for(int i=0; i<size; i++) {
         		Equipment eq = (Equipment)equipments.get(i);
+        		String Name = eq.getName();
         		if(eq.prop.IsLocked()){
-        			zjxt_msg.show("【{}】 {}",eq.getName(),eq.prop.LockedInfo);
+        			zjxt_msg.show("【{}】 -- {}",Name,eq.prop.LockedInfo);
         		 	continue;
         		 }
-        		//String eid = eq.getMrID();
-								
+        		//String eid = eq.getMrID();			
 				checkU(eq,volRate,overUp,overLo);
 	    	}
     	}
@@ -271,28 +271,55 @@ function boolean handleLimitUp(Equipment eq) {
 * 电压越下限
 */
 function boolean handleLimitLo(Equipment eq) {
+		String Name = eq.getName();
 		if(!canOnorUp(eq)) {
-			eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,无调节手段!");
+			eq.prop.SetAlarm("【{}】当前不符合控制条件，存在闭锁或保护。",Name);
 			return false;
 		} else {
 			if(eq instanceof zCapacitor) { 
-				float Umax = eq.limit.upup-eq.U; 
-				double ΔU = eq.volChange;
-				if(ΔU != 0 && ΔU<=Umax) {
-					//double targetPF = getTargetPF(eq, eq.Qm);
-					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-					commandContent.setAction("调节【{}】工作模式为电压优先模式,设备将投入一组电容", eq.getName());
-					commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越下限,可投入一组电容", eq.U, eq.Q, eq.PF);
-					commandContent.setExpect("电压为:{}", round(eq.U+ΔU));
-					sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
-					return true;
+			    if(eq.vlid == 10000){
+			    	//zjxt_msg.show("{} 10000V rule",Name);
+			    	zCapacitor cap = (zCapacitor)eq;
+			    	zCapacitor capitem = cap.getActItem(0);//查找状态是切除（未投入）的一个电容子组
+			    	if(capitem != null){		    		
+			     		float Umax = cap.limit.upup-cap.U; 
+						double ΔU = capitem.volChange;
+						zjxt_msg.show("Umax {} ΔU {}",Umax,ΔU);
+			    		if(ΔU != 0 && ΔU<=Umax) {						
+							zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
+							commandContent.setAction("调控【{}】投入一组电容", capitem.getName());
+							commandContent.setReason("当前电压:{}V,无功功率为:{},判断为电压越下限,可投入一组电容", eq.U, eq.Q);
+							commandContent.setExpect("电压为:{}", round(cap.U+ΔU));
+							//zjxt_msg.show("before sendYK");
+							String cmdinfo = commandContent.toString();
+							zjxt_msg.show(cmdinfo);
+							//capitem.prop.setyk(1,zjxt_msg.KongZhi,"投入",cmdinfo,cmdinfo);
+							sendYK(capitem, 1, commandContent.toString());
+							
+							return true;
+						}
+			    	}else{
+			    		cap.prop.SetAlarm("【{}】当前没有可以投入的电容子组",Name);
+			    	}
+			    }else{
+					float Umax = eq.limit.upup-eq.U; 
+					double ΔU = eq.volChange;
+					if(ΔU != 0 && ΔU<=Umax) {
+						//double targetPF = getTargetPF(eq, eq.Qm);
+						zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
+						commandContent.setAction("调节【{}】工作模式为电压优先模式,设备将投入一组电容", Name);
+						commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越下限,可投入一组电容", eq.U, eq.Q, eq.PF);
+						commandContent.setExpect("电压为:{}", round(eq.U+ΔU));
+						sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
+						return true;
+					}
 				}
-				eq.prop.SetAlarm(eq.getName()+"当前电压:"+eq.U+",判断为电压越下限,无有效调节手段!");
+				eq.prop.SetAlarm("【{}】当前电压:{},电压越下限,无调节手段!",Name,eq.U);
 				return false;
 			} else if(eq instanceof zVoltageRegulator ||
 				eq instanceof zTransformerFormer) { //调压器、调压变
 				zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
-				commandContent.setAction("【{}】升档操作", eq.getName());
+				commandContent.setAction("【{}】升档操作", Name);
 				commandContent.setReason("当前电压:{}V,档位:{}档,判断为电压越下限",eq.U, eq.currentStep);
 				commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, true), eq.currentStep+1);
 				sendYK(eq, 1, commandContent.toString());
@@ -308,16 +335,16 @@ function boolean handleLimitLo(Equipment eq) {
 **/
 function void sendYK(Equipment e, double value, String info) {
 	String head = "";
-	String kind = "";
-	if(e.controlState.equals(zjxt_State.cs_JanYi)) { //建议
-		head = "建议;";
-		kind = zjxt_msg.JianYi;  //'建议'的拼音
-	} else if(e.controlState.equals(zjxt_State.cs_Kongzhi)) { //控制
-		head = "控制;";
-		kind = zjxt_msg.KongZhi;  //zjxt_msg.KongZhi 静态字符串资源，是'控制'的拼音
-	}
+	String kind = "";	
 	if(e instanceof zTransformerFormer || 
 		e instanceof zVoltageRegulator) {
+			//if(e.controlState.equals(zjxt_State.cs_JanYi)) { //建议
+			//	head = "建议;";
+			//	kind = zjxt_msg.JianYi;  //'建议'的拼音
+			//} else if(e.controlState.equals(zjxt_State.cs_Kongzhi)) { //控制
+			//	head = "控制;";
+			//	kind = zjxt_msg.KongZhi;  //zjxt_msg.KongZhi 静态字符串资源，是'控制'的拼音
+			//}
 		String action = "";
 		int step = e.currentStep;
 		if(value == 1) {
@@ -327,8 +354,23 @@ function void sendYK(Equipment e, double value, String info) {
 			action = "降档";
 			step = step-1;
 		}
-		e.prop.setykByName((int)value, "升降档", kind, action, info, head+info);	
+		String ykname = e.getName()+"-开关遥控";
+		//zjxt_msg.show(ykname);
+		e.prop.setykByName((int)value, ykname, kind, action, info, info);	
 		e.prop.SetTarget((float)e.currentStep, (float)step);
+	}else{
+		String action = "";
+		int cur_onoff = 0; //当前开关状态
+		if(value == 1) {
+			action = "投入";
+			cur_onoff = 0;
+		} else if(value == 0) {
+			action = "切除";
+			cur_onoff = 1;
+		}
+		String ykname = e.getName()+"-开关遥控";
+		e.prop.setykByName((int)value, ykname, kind, action, info, info);	
+		e.prop.SetTarget((float)cur_onoff,(float)value);
 	}
 }
 

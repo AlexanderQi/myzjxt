@@ -28,20 +28,21 @@ public class zjxt_Property {
 	// public String elementId;
 	private zjxt_Measure measure;
 	private List<PropertyItem> pList = new ArrayList<zjxt_Property.PropertyItem>();
-	private PowerSystemResource Owner;
+	public PowerSystemResource Owner;
 
 	private float TargetValue, OldValue;
-	
-	//TODO 一次发送多个命令
+
+	// TODO 一次发送多个命令
 	private List<CommandOldTargetVal> cmdValue = new ArrayList<CommandOldTargetVal>(4);
 	private Date TargetSetTime = null;
 	private int dp = -1; // dbProvider code: 1 oracle; 2 mysql;
-	
-	/** 上一次告警信息*/
+
+	/** 上一次告警信息 */
 	private List<AlarmInfo> lastAlarmInfo = new ArrayList<AlarmInfo>();
-	
-	/** 上一次告警时间*/
-	//private long lastAlarmMillis;
+
+	/** 上一次告警时间 */
+	// private long lastAlarmMillis;
+	public String pinfo = "prop info";
 
 	public zjxt_Property() throws Exception {
 		iniDb();
@@ -67,8 +68,7 @@ public class zjxt_Property {
 	public PowerSystemResource GetLeastActEquip(String schemeId) {
 		try {
 			PowerSystemResource psr = null;
-			Connection dbConnection = zjxt_ConnectionPool.Instance()
-					.getConnection();
+			Connection dbConnection = zjxt_ConnectionPool.Instance().getConnection();
 			Statement stat = dbConnection.createStatement();
 			String sql = null;
 			if (dp == 1) {
@@ -95,8 +95,7 @@ public class zjxt_Property {
 	public boolean IsLeastActEquip(String schemeId) {
 		boolean isleast = false;
 		try {
-			Connection dbConnection = zjxt_ConnectionPool.Instance()
-					.getConnection();
+			Connection dbConnection = zjxt_ConnectionPool.Instance().getConnection();
 			Statement stat = dbConnection.createStatement();
 			String sql = null;
 			if (dp == 1) {
@@ -136,21 +135,13 @@ public class zjxt_Property {
 		String sql = null;
 
 		if (dp == 1) {
-			sql = "update tblelementstate t set t.belockstate='"
-					+ zjxt_State.Ls_Kongzhi
-					+ "',t.lockstarttime="
-					+ "to_date('"
-					+ d
-					+ "','yyyy-mm-dd hh24:mi:ss')"
-					+ "where t.elementid in(select c.id from tblfeedcapacitor c where c.schemeid="
-					+ SchemeId
+			sql = "update tblelementstate t set t.belockstate='" + zjxt_State.Ls_Kongzhi + "',t.lockstarttime="
+					+ "to_date('" + d + "','yyyy-mm-dd hh24:mi:ss')"
+					+ "where t.elementid in(select c.id from tblfeedcapacitor c where c.schemeid=" + SchemeId
 					+ ") and (t.belockstate is null or t.belockstate <> '动作次数闭锁')";
 		} else {
-			sql = "update tblelementstate t set t.belockstate='"
-					+ zjxt_State.Ls_Kongzhi
-					+ "',t.lockstarttime=now() "
-					+ "where t.elementid in(select c.id from tblfeedcapacitor c where c.schemeid="
-					+ SchemeId
+			sql = "update tblelementstate t set t.belockstate='" + zjxt_State.Ls_Kongzhi + "',t.lockstarttime=now() "
+					+ "where t.elementid in(select c.id from tblfeedcapacitor c where c.schemeid=" + SchemeId
 					+ ") and (t.belockstate is null or t.belockstate <> '动作次数闭锁')";
 		}
 		try {
@@ -171,12 +162,11 @@ public class zjxt_Property {
 	public PowerSystemResource GetOtherSchemeEquip(String schemeId) {
 		PowerSystemResource psr = null;
 		try {
-			Connection dbConnection = zjxt_ConnectionPool.Instance()
-					.getConnection();
+			Connection dbConnection = zjxt_ConnectionPool.Instance().getConnection();
 			Statement stat = dbConnection.createStatement();
 			String selfid = Owner.getMrID();
-			String sql = "select c.id,c.schemeid from tblfeedcapacitor c where c.schemeid="
-					+ schemeId + " and c.id <> " + selfid;
+			String sql = "select c.id,c.schemeid from tblfeedcapacitor c where c.schemeid=" + schemeId + " and c.id <> "
+					+ selfid;
 			ResultSet rSet = stat.executeQuery(sql);
 			String eid;
 			if (rSet.next()) {
@@ -217,10 +207,10 @@ public class zjxt_Property {
 		if (TargetSetTime == null)
 			return -1;
 		Date curDate = new Date();
-//		int tmp = zjxt_State.GetPLockTimeLimit(Owner.getMrID());
-//		if (second >= tmp) {
-//			second = tmp - 5;
-//		}
+		// int tmp = zjxt_State.GetPLockTimeLimit(Owner.getMrID());
+		// if (second >= tmp) {
+		// second = tmp - 5;
+		// }
 		long between = (curDate.getTime() - TargetSetTime.getTime()) / 1000;
 		if (between >= second) { // 超时处理
 			TargetSetTime = null;
@@ -228,12 +218,12 @@ public class zjxt_Property {
 		} else {
 
 			if (Math.abs(TargetValue - curValue) < 0.001) {
-//				if(Math.abs(Owner.oldU - Owner.U)>0.1) {
-					TargetSetTime = null;
-					return 1; // 成功
-//				} else {
-//					return 2;
-//				}
+				// if(Math.abs(Owner.oldU - Owner.U)>0.1) {
+				TargetSetTime = null;
+				return 1; // 成功
+				// } else {
+				// return 2;
+				// }
 			} else {
 				return 2; // 未达到，需要等待。
 			}
@@ -255,8 +245,8 @@ public class zjxt_Property {
 		PropertyItem item = new PropertyItem(id, name, ca, czh, dh);
 		item.elementId = Owner.getMrID();
 		pList.add(item);
-		zjxt_msg.show("Add Measure " + Owner.getName() + Owner.getMrID() + " "
-				+ name + " " + ca + " " + czh + " " + dh);
+		zjxt_msg.show(
+				"Add Measure " + Owner.getName() + Owner.getMrID() + " " + name + " " + ca + " " + czh + " " + dh);
 		return item;
 	}
 
@@ -267,13 +257,14 @@ public class zjxt_Property {
 		}
 		throw new Exception(Owner.getName() + "找不到" + name + "属性");
 	}
-	
+
 	public float getyc(String Name) throws Exception {
 		PropertyItem item = getItem(Name);
 		if (item != null) {
-//			Owner.hasDeadData = Owner.hasDeadData || measure.isDeadData(item.ca, item.czh, item.dh);
+			// Owner.hasDeadData = Owner.hasDeadData ||
+			// measure.isDeadData(item.ca, item.czh, item.dh);
 			return measure.GetYcValue(item.id);
-//			return measure.GetYcValue(item.ca, item.czh, item.dh);
+			// return measure.GetYcValue(item.ca, item.czh, item.dh);
 		}
 		throw new Exception(Owner.getName() + "getYc->" + Name + " 未找到.");
 	}
@@ -289,8 +280,7 @@ public class zjxt_Property {
 	public boolean setyc(String Name, float value) throws Exception {
 		PropertyItem item = getItem(Name);
 		if (item != null) {
-			return measure.SetYcValue(item.ca, item.czh, item.dh, value,
-					new Date());
+			return measure.SetYcValue(item.ca, item.czh, item.dh, value, new Date());
 		}
 		return false;
 	}
@@ -330,96 +320,110 @@ public class zjxt_Property {
 		}
 	}
 
-	public boolean setyk(int ykValue, String Kind, String Action,
-			String CmdContent, String Sound) throws Exception {
-		String elementId = Owner.getMrID();
-		long aid = 0;
-		if(Owner instanceof zCapacitor) { //电容器特殊处理
-			String GroupId =null;
-			zCapacitor cap = (zCapacitor)Owner;
-			if(cap.IsItem)
-				GroupId = cap.MyGroup.Id;
-			else
-				GroupId = cap.Id;
-			aid = zjxt_Cmd.SendAdviceSound(GroupId, Kind, Action, CmdContent,
-					Sound);
-		} else {
-			aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
-					Sound);
+	public boolean setyk(int ykValue, String Kind, String Action, String CmdContent, String Sound) throws Exception {
+		String elementId = Owner.getMrID();	
+		PowerSystemResource eq = Owner;	
+		if (Owner instanceof zCapacitor) { // 电容器特殊处理
+			zCapacitor cap = (zCapacitor) Owner;
+			if (cap.IsItem) {
+				elementId = cap.MyGroup.Id;
+				eq = zjxt_CimBuild.GetById(elementId);
+				if (eq == null) {
+					throw new Exception("prop->setyk->电容子组为null");
+				}
+			}
 		}
-		
-		
+		Kind = eq.controlState;
+		if (Kind.equals(zjxt_msg.KongZhi)) {
+			Sound = "动作;" + Sound;
+		} else {
+			Sound = "建议;" + Sound;
+		}
+		long aid = 0;
+		aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent, Sound);
+
+
 		// Kind ：控制或建议
 		if (Kind.equals(zjxt_msg.KongZhi)) { // Kind ：控制或建议
 
 			zjxt_yk yk = measure.GetYk(elementId);
 			if (yk == null) {
-				zjxt_msg.showwarn(Owner.getName() + "-被控设备id:" + elementId
-						+ " 未设置遥控参数.");
+				zjxt_msg.showwarn(Owner.getName() + "-被控设备id:" + elementId + " 未设置遥控参数.");
 				return false;
 			}
 			if (Action.equals("投入") || Action.equals("升档")) // 投，切，升，降
-				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper,
-						ykValue, aid);
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper, ykValue, aid);
 			else {
-				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down,
-						ykValue, aid);
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down, ykValue, aid);
 			}
 		}
 		return true;
 	}
 
-	public boolean setykByName(int ykValue, String ykname, String Kind,
-			String Action, String CmdContent, String Sound) throws Exception {
-		String elementId = Owner.getMrID();
-		long aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
-				Sound);
+	public boolean setykByName(int ykValue, String ykname, String Kind, String Action, String CmdContent, String Sound)
+			throws Exception {
+		String elementId = Owner.getMrID();	
+		PowerSystemResource eq = Owner;	
+		if (Owner instanceof zCapacitor) { // 电容器特殊处理
+			zCapacitor cap = (zCapacitor) Owner;
+			if (cap.IsItem) {  //特殊处理原因：电容子组没有控制状态，只有电容器才有。
+				elementId = cap.MyGroup.Id;
+				eq = zjxt_CimBuild.GetById(elementId);
+				if (eq == null) {
+					throw new Exception("prop->setyk->电容子组为null");
+				}
+			}
+		}
+		Kind = eq.controlState;
+		if (Kind.equals(zjxt_msg.KongZhi)) {
+			Sound = "动作;" + Sound;
+		} else {
+			Sound = "建议;" + Sound;
+		}
+		long aid = 0;
+		aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent, Sound);
+
 		// Kind ：控制或建议
 		if (Kind.equals(zjxt_msg.KongZhi)) { // Kind ：控制或建议
-
-//			zjxt_yk yk = measure.GetYkByName(elementId, ykname);
-			zjxt_yk yk = measure.GetYkByKind(elementId, ykname);
+			zjxt_yk yk = measure.GetYkByName(eq.getMrID(), ykname);
 			if (yk == null) {
-				zjxt_msg.showwarn(ykname + " 未设置遥控参数.");
+				zjxt_msg.showwarn("【{}】{}未设置.", eq.getName(), ykname);
 				return false;
 			}
 			if (Action.equals("投入") || Action.equals("升档")) // 投，切，升，降
-				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper,
-						yk.FixValue_upper, aid);
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper, yk.FixValue_upper, aid);
 			else {
-				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down,
-						yk.FixValue_down, aid);
+				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down, yk.FixValue_down, aid);
 			}
 		}
 		return true;
 	}
 
-	public boolean setykByName(String ykname, String Kind, String Action,
-			String CmdContent, String Sound) throws Exception {
-		String elementId = Owner.getMrID();
-		long aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
-				Sound);
-		// Kind ：控制或建议
-		if (Kind.equals(zjxt_msg.KongZhi)) { // Kind ：控制或建议
+	// public boolean setykByName(String ykname, String Kind, String Action,
+	// String CmdContent, String Sound) throws Exception {
+	// String elementId = Owner.getMrID();
+	// long aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
+	// Sound);
+	// // Kind ：控制或建议
+	// if (Kind.equals(zjxt_msg.KongZhi)) { // Kind ：控制或建议
+	//
+	// zjxt_yk yk = measure.GetYkByName(elementId, ykname);
+	// if (yk == null) {
+	// zjxt_msg.showwarn(ykname + " 未设置遥控参数.");
+	// return false;
+	// }
+	// if (Action.equals("投入") || Action.equals("升档")) // 投，切，升，降
+	// zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper,
+	// yk.FixValue_upper, aid);
+	// else {
+	// zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down,
+	// yk.FixValue_down, aid);
+	// }
+	// }
+	// return true;
+	// }
 
-			zjxt_yk yk = measure.GetYkByName(elementId, ykname);
-			if (yk == null) {
-				zjxt_msg.showwarn(ykname + " 未设置遥控参数.");
-				return false;
-			}
-			if (Action.equals("投入") || Action.equals("升档")) // 投，切，升，降
-				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_upper, yk.dh_upper,
-						yk.FixValue_upper, aid);
-			else {
-				zjxt_Cmd.SendYkCmd(elementId, yk.channel, yk.czh_down, yk.dh_down,
-						yk.FixValue_down, aid);
-			}
-		}
-		return true;
-	}
-
-	public String GetSpecYXID(String TableName, String FieldName,
-			String EquipmentId) {
+	public String GetSpecYXID(String TableName, String FieldName, String EquipmentId) {
 		try {
 			// to do in will
 			return null;
@@ -429,11 +433,10 @@ public class zjxt_Property {
 		}
 	}
 
-	public boolean setyxyk(int ykValue, String yxid, String Kind,
-			String Action, String CmdContent, String Sound) throws Exception {
+	public boolean setyxyk(int ykValue, String yxid, String Kind, String Action, String CmdContent, String Sound)
+			throws Exception {
 		String elementId = Owner.getMrID();
-		long aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
-				Sound);
+		long aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent, Sound);
 		// Kind ：控制或建议
 		if (Kind.equals(zjxt_msg.KongZhi)) { // Kind ：控制或建议
 			zjxt_yx yx = measure.GetYx(yxid);
@@ -446,49 +449,51 @@ public class zjxt_Property {
 		return true;
 	}
 
-	public boolean setyt(String ytKind, float ytValue, String Kind,
-			String Action, String CmdContent, String Sound) throws Exception {
+	public boolean setyt(String ytKind, float ytValue, String Kind, String Action, String CmdContent, String Sound)
+			throws Exception {
 		String elementId = Owner.getMrID();
 		zjxt_yt yt = measure.GetYt(elementId, ytKind);
 
 		// return measure.SetYtValue(item.ca, item.czh, item.dh, ytValue);
-		long aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent,
-				Sound); // +" "+Action+": "+ytValue
+		long aid = zjxt_Cmd.SendAdviceSound(elementId, Kind, Action, CmdContent, Sound); // +"
+																							// "+Action+":
+																							// "+ytValue
 		if (yt == null) {
-			zjxt_msg.showwarn(Owner.getName() + " id=" + elementId
-					+ " 没有遥调号,无法操作!");
+			zjxt_msg.showwarn(Owner.getName() + " id=" + elementId + " 没有遥调号,无法操作!");
 			return false;
 		}
 		if (Kind.equals(zjxt_msg.KongZhi)) {// Kind ：控制
-			zjxt_Cmd.SendYtCmd(elementId, yt.channel, yt.czh, yt.dh, ytValue*yt.multiplevalue, aid);
+			zjxt_Cmd.SendYtCmd(elementId, yt.channel, yt.czh, yt.dh, ytValue * yt.multiplevalue, aid);
 		}
 		return true;
 	}
 
 	/**
 	 * 设置命令执行结果
+	 * 
 	 * @param result
 	 * @return
 	 */
 	public void setResult(String result) throws Exception {
 		zjxt_Cmd.SendCmdResult(Owner.getMrID(), result, result);
 	}
-	
+
 	public boolean SetAlarm(String info, Object... params) throws Exception {
-		info = MessageFormatter.arrayFormat(info, params).getMessage();
+		// info = MessageFormatter.arrayFormat(info, params).getMessage();
+		info = zjxt_msg.format(info, params);
 		long currentTimeMillis = System.currentTimeMillis();
-		for(AlarmInfo alarmInfo: lastAlarmInfo) {
-			if(alarmInfo.info.equals(info)) {
-				if((currentTimeMillis - alarmInfo.alarmDate) / 1000 >= (5*60)) {
+		for (AlarmInfo alarmInfo : lastAlarmInfo) {
+			if (alarmInfo.info.equals(info)) {
+				if ((currentTimeMillis - alarmInfo.alarmDate) / 1000 >= (5 * 60)) {
 					alarmInfo.alarmDate = currentTimeMillis;
 					String elementId = Owner.getMrID();
 					zjxt_Cmd.SendAdviceSound(elementId, zjxt_msg.GaoJing, "提示", info, info);
-				} 
+				}
 				return true;
 			}
 		}
-		for(AlarmInfo alarmInfo: lastAlarmInfo) {
-			if((currentTimeMillis-alarmInfo.alarmDate) / 1000 >= (5*60)) {
+		for (AlarmInfo alarmInfo : lastAlarmInfo) {
+			if ((currentTimeMillis - alarmInfo.alarmDate) / 1000 >= (5 * 60)) {
 				lastAlarmInfo.remove(alarmInfo);
 			}
 		}
@@ -516,8 +521,7 @@ public class zjxt_Property {
 	}
 
 	private PropertyItem getItem(String Name) {
-		for (Iterator<PropertyItem> iterator = pList.iterator(); iterator
-				.hasNext();) {
+		for (Iterator<PropertyItem> iterator = pList.iterator(); iterator.hasNext();) {
 			PropertyItem obj = (PropertyItem) iterator.next();
 			if (obj.Name.equals(Name)) {
 				return obj;
@@ -532,11 +536,11 @@ public class zjxt_Property {
 		String elementId = Owner.getMrID();
 		try {
 			LockedInfo = zjxt_State.GetLockState(elementId);
-			if (LockedInfo.equals(""))
+			if (LockedInfo == null || LockedInfo.equals(""))
 				return false;
-//			else
-//				zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
-//						+ " 闭锁信息->" + LockedInfo);
+			// else
+			// zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
+			// + " 闭锁信息->" + LockedInfo);
 		} catch (Exception e) {
 			zjxt_msg.showwarn(e.toString());
 		}
@@ -550,23 +554,24 @@ public class zjxt_Property {
 	public void SetException(String eStr) throws Exception {
 		String elementId = Owner.getMrID();
 		zjxt_State.SetExceptionLock(elementId, eStr);
-		//zjxt_msg.showwarn(Owner.getName() + eStr);
+		// zjxt_msg.showwarn(Owner.getName() + eStr);
 	}
 
 	public String ProtectInfo = "";
+
 	public void protectAlarm(String info, String type) throws Exception {
 		zjxt_Cmd.SendAdvice(Owner.getMrID(), zjxt_ProtectionTable.PROTECT_INFO, type, info);
 	}
-	
+
 	public boolean IsProtected() {
 		String elementId = Owner.getMrID();
 		try {
 			ProtectInfo = zjxt_ProtectionTable.GetProtection(elementId);
 			if (ProtectInfo.equals(""))
 				return false;
-//			else
-//				zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
-//						+ " 保护信息->" + LockedInfo);
+			// else
+			// zjxt_msg.showwarn(Owner.getName() + " id:" + elementId
+			// + " 保护信息->" + LockedInfo);
 		} catch (Exception e) {
 			zjxt_msg.showwarn(e.toString());
 		}
@@ -580,16 +585,16 @@ public class zjxt_Property {
 	public String CanControl() {
 		String elementId = Owner.getMrID();
 		try {
-			//String name = Owner.getName() + " 可以";
+			// String name = Owner.getName() + " 可以";
 			String str = zjxt_State.GetControlState(elementId);
 
 			if (str.equals(zjxt_State.cs_bucanyu)) {
 				return str;
 			} else if (str.equals(zjxt_State.cs_JanYi)) {
-//				zjxt_msg.showwarn(name + str);
+				// zjxt_msg.showwarn(name + str);
 				return str;
 			} else if (str.equals(zjxt_State.cs_Kongzhi)) {
-//				zjxt_msg.showwarn(name + str);
+				// zjxt_msg.showwarn(name + str);
 				return str;
 			}
 
@@ -601,15 +606,15 @@ public class zjxt_Property {
 
 	public void AddSelfActNum(boolean IsSuccess, String actionType) throws Exception {
 
-		if(actionType.equals(zjxt_msg.YaoKong)) {
+		if (actionType.equals(zjxt_msg.YaoKong)) {
 			int direct = TargetValue > OldValue ? 1 : 0; // 目标值大于原始值为升档
 			zjxt_Cmd.AddActNum(Owner.getMrID(), direct, 1, IsSuccess);
-		} 
-		if(actionType.equals(zjxt_msg.YaoTiao)) {
+		}
+		if (actionType.equals(zjxt_msg.YaoTiao)) {
 			zjxt_Cmd.AddActNum(Owner.getMrID(), 3, 1, IsSuccess);
 		}
-//		int direct = TargetValue > OldValue ? 1 : 0; // 目标值大于原始值为升档
-//		zjxt_Cmd.AddActNum(Owner.getMrID(), direct, 1, IsSuccess);
+		// int direct = TargetValue > OldValue ? 1 : 0; // 目标值大于原始值为升档
+		// zjxt_Cmd.AddActNum(Owner.getMrID(), direct, 1, IsSuccess);
 	}
 
 	public void AddSelfActCount(int direct) throws Exception {
@@ -623,9 +628,8 @@ public class zjxt_Property {
 		zjxt_msg.showwarn(Owner.getName() + " 其他动作次数+1");
 	}
 
-	public void SendLTCmd(String name, float lowLimit, float upLimit)
-			throws Exception {
-		//zjxt_Cmd.SendLTCmd(name, lowLimit, upLimit);
+	public void SendLTCmd(String name, float lowLimit, float upLimit) throws Exception {
+		// zjxt_Cmd.SendLTCmd(name, lowLimit, upLimit);
 		zjxt_msg.showwarn("此版本不支持发送联调命令");
 	}
 
@@ -645,10 +649,10 @@ public class zjxt_Property {
 	}
 
 	class AlarmInfo {
-		String info; //告警信息
-		long alarmDate; //告警时间毫秒数
-	} 
-	
+		String info; // 告警信息
+		long alarmDate; // 告警时间毫秒数
+	}
+
 	/**
 	 * 
 	 * @ClassName: CommandOldTargetVal
@@ -659,8 +663,8 @@ public class zjxt_Property {
 	 *
 	 */
 	class CommandOldTargetVal {
-		float oldValue; //旧值
-		float targetValue; //目标值
+		float oldValue; // 旧值
+		float targetValue; // 目标值
 	}
-	
+
 }

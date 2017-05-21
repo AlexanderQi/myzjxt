@@ -70,17 +70,7 @@ public class zjxt_CimBuild {
 			PowerSystemResource obj = (PowerSystemResource) iterator.next();
 			if (obj.getMrID().equals(Id)) {
 				return obj;
-			} else {
-				if(obj instanceof zCapacitor) {
-					List<zCapacitor> list = ((zCapacitor) obj).ItemList;
-					for(int i=0; i<((zCapacitor) obj).ItemList.size(); i++) {
-						if(list.get(i).getMrID().equals(Id)) {
-							return obj;
-						}
-					}
-				}
-			}
-			
+			} 		
 		}
 		return null;
 	}
@@ -275,17 +265,14 @@ public class zjxt_CimBuild {
 		zCapacitor capa = new zCapacitor();
 		capa.property = new zjxt_Property(capa,
 				zjxt_CimBuild.Measure);
-		if (Owner != null && !isItem) {
-			Owner.AddCp(capa);
-			Owner.equipments.add(capa);
+		if (!isItem) {
+			Owner.AddCp(capa);  //增加到馈线电容器列表
+			Owner.equipments.add(capa); //增加到馈线设备列表
 		}
-
 		capa.setFeederLine(Owner);
 		capa.line = Owner;
-		if(!isItem) {
+		if(!isItem)
 			cbList.add(capa);
-		}
-		
 		return capa;
 	}
 
@@ -1105,6 +1092,15 @@ public class zjxt_CimBuild {
 			item.MyGroup = this;
 		}
 		
+		public zCapacitor getItem(String ItemId){
+			for(zCapacitor c : ItemList){
+				if(c.Id.equals(ItemId)){
+					return c;
+				}
+			}
+			return null;
+		}
+		
 		/**
 		 * switchStat 开关状态
 		 * @return 返回一个可以开关状态等于switchStat值的电容子组
@@ -1114,7 +1110,7 @@ public class zjxt_CimBuild {
 				return null;
 		    	for(int i=0;i<ItemList.size();i++){
 		    		zCapacitor cap = ItemList.get(i); 			
-		    		if(cap.prop.getyxById(cap.SWITCHYXID) == switchStat){
+		    		if(cap.property.getyxById(cap.SWITCHYXID) == switchStat){
 		    			return cap;
 		    		}
 		    	}
@@ -1593,14 +1589,15 @@ public class zjxt_CimBuild {
 	 */
 	public static boolean filterMeasure(Equipment e) {
 		VoltageLevel voltage = e.voltage;
+		String Name = e.getName();
 //		boolean isVolError = false;
 		try {
 			if(e instanceof zCapacitor ||
 		    		e instanceof zVoltageRegulator) {
-				if("0.38kv".equals(voltage.getName())) { //低压
+				if("0.38kv".equals(voltage.getName())) { //低压 线电压转相电压
 					if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 				    		e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {
-				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
 				    		e.prop.SetException("电压量测异常");
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
@@ -1612,7 +1609,7 @@ public class zjxt_CimBuild {
 				} else {
 					if(e.U>voltage.getHighVoltageLimit() ||
 				    		e.U<voltage.getLowVoltageLimit()) {
-				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
 				    		e.prop.SetException("电压量测异常");
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
@@ -1645,9 +1642,9 @@ public class zjxt_CimBuild {
 	    				}
 	    				tmp = Math.abs(e.Q/(3*e.U*e.I*Math.sqrt(1-Math.pow(e.PF, 2))) * 1000);
 	    			}
-	    			zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", e.getName(),String.format("%.2f", tmp));
+	    			zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", Name,String.format("%.2f", tmp));
 	    			if(0.8>=tmp || tmp>=1.2) {
-	    				//e.prop.SetAlarm("{}当前无功:{}kVar,功率因数:{},与当前电压{}V、电流{}A不对应!", e.getName(), e.Q, e.PF, e.U, e.I);
+	    				zjxt_msg.showwarn("【{}】当前无功:{}kVar,功率因数:{},与当前电压{}V、电流{}A不对应!", Name, e.Q, e.PF, e.U, e.I);
 	    				e.isMeasureError = true;
 	    				return e.isVolError;
 	    			}
@@ -1655,7 +1652,7 @@ public class zjxt_CimBuild {
 	    	} else if(e instanceof zTransformerFormer) {
 	    		if(e.U>250 ||
 		    		e.U<180) {
-		    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+		    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!",Name, e.U);
 		    		e.prop.SetException("电压量测异常");
 		    		e.isMeasureError = true;
 		    		e.isVolError = true;
@@ -1669,15 +1666,15 @@ public class zjxt_CimBuild {
 	    	} else {
 	    		if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 	    			e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {  
-	    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", e.getName(), e.U);
+	    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
 	    			e.prop.SetException("电压量测异常");
 	    			e.isMeasureError = true;
 		    		return e.isVolError;
 	    		}
 	    		double tmp = Math.abs(e.Q/(3*e.U*e.I/1000)/Math.sqrt(1-Math.pow(e.PF, 2)));
-	    		zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", e.getName(), String.format("%.2f", tmp));
+	    		zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", Name, String.format("%.2f", tmp));
 	    		if(tmp<=0.8 || tmp>=1.2) {
-	    			//e.prop.SetAlarm("{}当前无功:{}kVar,功率因数:{}V,与当前电压{}V、电；流{}A不对应！", e.getName(), e.Q, e.PF, e.U, e.I);
+	    			zjxt_msg.showwarn("【{}】当前无功:{}kVar,功率因数:{}V,与当前电压{}V、电；流{}A不对应！", Name, e.Q, e.PF, e.U, e.I);
 	    			e.isMeasureError = true;
 	    			return e.isVolError;
 	    		}
