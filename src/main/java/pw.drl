@@ -634,7 +634,7 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 		zjxt_msg.show("节点【{}】当前电压良好, U：{}V, 将设为功率因数优先模式。", ename, e.U);
 		zjxt_CommandContent commandContent = new zjxt_CommandContent(e.controlState);
 		commandContent.setAction("调节【{}】工作模式为功率因数优先模式", ename);
-		commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},判断为电压越下限,可投入一组电容", e.U, e.Q, e.PF);
+		commandContent.setReason("当前电压:{}V,无功功率为:{},功率因数为:{},电压良好,可以调节为功率因数优先模式", e.U, e.Q, e.PF);
 		commandContent.setExpect("设备工作模式处于功率因数优先模式.");
 		sendYT(e, e.controlParam.cosCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);				
 	} 
