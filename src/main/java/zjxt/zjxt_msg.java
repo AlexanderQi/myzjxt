@@ -128,7 +128,7 @@ public class zjxt_msg {
 		}
     }
 	
-	public static synchronized void sendMsg(int MsgTag,String msg, Object... args){
+	public static synchronized String sendMsg(int MsgTag,String msg, Object... args){
 		String message = format(msg, args);
 		Connection conn = null;
 		try {
@@ -143,19 +143,22 @@ public class zjxt_msg {
 			ps.setInt(2, MsgTag);
 			ps.execute();
 			conn.close();
+			return message;
 		} catch (SQLException e) {
 			zjxt_kernel.mlog.error(e.toString());
+			return null;
 		} catch (Exception e) {
 			//e.printStackTrace();
 			zjxt_kernel.mlog.error(e.toString());
+			return null;
 		}
 
 	
 	}
 	
-	public static synchronized void show(String msg, Object... args){
-		sendMsg(0,msg,args);
+	public static synchronized String show(String msg, Object... args){		
 		zjxt_kernel.mlog.info(msg, args);
+		return sendMsg(0,msg,args);
 	}
 	
 	public static synchronized void showdebug(String msg, Object... args){
@@ -163,9 +166,9 @@ public class zjxt_msg {
 		zjxt_kernel.mlog.debug(msg, args);
 	}
 	
-	public static synchronized void showwarn(String msg, Object... args){
-		sendMsg(5001,msg,args);
+	public static synchronized String showwarn(String msg, Object... args){
 		zjxt_kernel.mlog.warn(msg, args);
+		return sendMsg(5001,msg,args);		
 	}
 	
 	public static String getLimitStr(String msg,float v,float c){

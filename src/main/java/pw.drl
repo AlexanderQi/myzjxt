@@ -508,10 +508,17 @@ function boolean canOfforDown(Equipment e) {
 	boolean isMeasureError = e.isMeasureError;
 	String equiName = e.getName();
 	zjxt_msg.show("【{}】控制状态:{} 量测是否异常:{}",equiName,cs,isMeasureError);
-	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator)
-		zjxt_msg.show("【{}】需降档,当前档位:{} 最低档位:{}",equiName,e.currentStep,e.lowStep);
-	if(e instanceof zCapacitor)
+	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator){
+		int curStep = e.currentStep;
+		int lowStep = e.lowStep;
+		if(curStep <= lowStep){
+			zjxt_msg.show("【{}】当前档位:{},最低档位:{};已不能降档。",equiName,curStep,lowStep);
+			return false;
+		}
+	}	
+	else if(e instanceof zCapacitor)
 		zjxt_msg.show("【{}】当前工作模式:{}", equiName,e.workMode);
+	
 	if(isLocked)
 		zjxt_msg.show("【{}】{}", equiName,e.prop.LockedInfo);
 	if(isProtected)
@@ -547,9 +554,14 @@ function boolean canOnorUp(Equipment e) {
 	
 	zjxt_msg.show("【{}】控制状态:{} 量测是否异常:{}", equiName,cs,isMeasureError);
 
-	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator)
-		zjxt_msg.show("【{}】需升档,当前档位:{} 最高档位:{}", equiName,e.currentStep,e.highStep);
-				
+	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator){
+		int curStep = e.currentStep;
+		int highStep = e.highStep;
+		if(curStep >= highStep){
+			zjxt_msg.show("【{}】当前档位:{},最高档位:{};已不能升档。", equiName,curStep,highStep);
+			return false;
+		}
+	}
 	if(e instanceof zCapacitor)
 		zjxt_msg.show("【{}】当前工作模式:{}", equiName,e.workMode);
 	if(isLocked)

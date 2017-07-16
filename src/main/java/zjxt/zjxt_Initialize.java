@@ -793,9 +793,12 @@ public class zjxt_Initialize {
 			}
 			
 			//Init_SmartPrj();
-//			Init_SmartEquipmentProperty();
-			
+//			Init_SmartEquipmentProperty();			
 			dbConnection.close();
+			//print cblist for debug
+			for(PowerSystemResource psr : zjxt_CimBuild.cbList){
+				System.out.println(psr.getName()+'\t'+psr.getMrID());
+			}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			InitError = true;
@@ -842,29 +845,35 @@ public class zjxt_Initialize {
 	}
 	
 	
-	private static void addProperty(zjxt_Property property,String MeasureId,String ProName,boolean IsYcType){
+	private static boolean addProperty(zjxt_Property property,String MeasureId,String ProName,boolean IsYcType){
 		if(MeasureId == null){
 			zjxt_msg.showwarn("addProperty->MeasureId=null, 量测名:"+ProName);
-			return;
+			return false;
 		}
+		Object obj = null;
 		if(IsYcType){
 			zjxt_yc yc = zjxt_CimBuild.Measure.GetYc(MeasureId);
 			if(yc == null){
 				String Name = property.Owner.getName();
-				zjxt_msg.showwarn("[{}]该YCID[{}]不存在, 量测名:{}",Name,MeasureId,ProName);
-				return;
+				String msg = zjxt_msg.showwarn("[{}]该YCID[{}]不存在, 量测名:{}",Name,MeasureId,ProName);
+				System.err.println(msg);
+				return false;
 			}
-			property.Add(MeasureId, ProName, yc.ca, yc.czh, yc.ych);
+			obj = property.Add(MeasureId, ProName, yc.ca, yc.czh, yc.ych);
 		}else{
 			zjxt_yx yx = zjxt_CimBuild.Measure.GetYx(MeasureId);
 			if(yx == null){
 				String Name = property.Owner.getName();
-				zjxt_msg.showwarn("[{}]该YXID[{}]不存在, 量测名:{}",Name,MeasureId,ProName);
-				return;
+				String msg = zjxt_msg.showwarn("[{}]该YXID[{}]不存在, 量测名:{}",Name,MeasureId,ProName);
+				System.err.println(msg);
+				return false;
 			}
-
-			property.Add(MeasureId, ProName, yx.ca, yx.czh, yx.yxh);
+			obj = property.Add(MeasureId, ProName, yx.ca, yx.czh, yx.yxh);	
 		}
+		if(obj != null)
+			return true;
+		else
+			return false;
 	}
 	
 //	private static void addproperty_tf(zTransformerFormer tf,String ycid, String proName){
@@ -1070,7 +1079,11 @@ public class zjxt_Initialize {
 				//comp.SCHEMEID =  rSet.getString("SCHEMEID");
 				comp.parentId = topo.zNodeList.get(eid).parentId;
 				comp.Id = eid;
-				Mapping(rSet, comp.property);
+				boolean b = Mapping(rSet, comp.property);
+				if(!b){
+					InitError = true;
+					return;
+				}
 				//comp.U = comp.property.getyc("UYCID");
 				//comp.Q = comp.property.getyc("QYCID");
 			}	
@@ -1159,7 +1172,11 @@ public class zjxt_Initialize {
 				String eid = rSet.getString("ID");
 				zVoltageRegulator tyq = (zVoltageRegulator)zjxt_CimBuild.GetById(eid);
 				if(tyq == null) continue;
-				Mapping(rSet, tyq.property);
+				boolean b = Mapping(rSet, tyq.property);
+				if(!b){
+					InitError = true;
+					return;
+				}
 				tyq.prop = tyq.property;			
 				tyq.parentId = topo.zNodeList.get(eid).parentId;
 				tyq.Id = eid;
@@ -1403,7 +1420,7 @@ public class zjxt_Initialize {
 		}
 	}
 	
-	public static void Mapping(ResultSet resultSet,zjxt_Property property){
+	public static boolean Mapping(ResultSet resultSet,zjxt_Property property){
 		try {
 	
 			String key = "";
@@ -1423,12 +1440,17 @@ public class zjxt_Initialize {
 				}else if(key.indexOf("YCID")>0 || key.indexOf("YTID")>0){
 					isMeasure = true;
 				}
-				if(isMeasure)
-					addProperty(property, value, key, isyc);	
+				if(isMeasure){
+					boolean b = addProperty(property, value, key, isyc);	
+					if(!b)
+						return false;
+				}
 			}
+			return true;
 		} catch (Exception e) {
 			// TODO: handle exception
 			zjxt_msg.showwarn("Mapping->量测", e);
+			return false;
 		}
 	}
 	
@@ -1508,7 +1530,11 @@ public class zjxt_Initialize {
 //						tf.parentid = nodes.get(i).parentId;
 //					}
 //				}
-				Mapping(rSet, tf.property);
+				boolean b = Mapping(rSet, tf.property);
+				if(!b){
+					InitError = true;
+					return;
+				}
 				tf.U = tf.property.getyc("UYCID");
 				tf.P = tf.property.getyc("PYCID");
 				tf.Q = tf.property.getyc("QYCID");

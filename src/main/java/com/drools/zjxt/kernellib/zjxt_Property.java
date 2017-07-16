@@ -274,7 +274,7 @@ public class zjxt_Property {
 		if (item != null) {
 			return measure.GetYcTime(item.ca, item.czh, item.dh);
 		}
-		throw new Exception("getYc->" + Name + " 未找到.");
+		throw new Exception("getyctime ->" + Name + " 未找到.");
 	}
 
 	public boolean setyc(String Name, float value) throws Exception {
