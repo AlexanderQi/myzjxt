@@ -322,6 +322,14 @@ public class zjxt_topo {
 
 		public zFeederLine line;
 		public float U;
+		public float UA;
+		public float UB;
+		public float UC;
+		public float Uavg;
+		public float Umax;
+		public float Umin;
+		public String UmaxName = "";
+		public String UminName = "";
 		public float oldU;
 		public int vlid;
 		public float I;

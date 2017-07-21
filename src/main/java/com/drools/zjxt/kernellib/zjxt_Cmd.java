@@ -505,7 +505,7 @@ public class zjxt_Cmd {
 		Connection conn = zjxt_ConnectionPool.Instance().getConnection();
 		PreparedStatement ps = null;
 		String sql = "INSERT INTO TBLCOMMAND (id,controlarea,schemeid,schemeindex,cmddatetime,czh,ykyth,ykytvalue,ykyttype,dealtag,cmdelementid,channel)"
-				+ "VALUES(?, ?, '1', '1', now(), ?, ?, ?, 0, 0,?)";
+				+ "VALUES(?, ?, '1', '1', now(), ?, ?, ?, 0, 0,?,?)";
 		ps = conn.prepareStatement(sql);
 		java.util.Date currDate = getDbTime();//new java.util.Date();
 		ps.setLong(1, adviceId);

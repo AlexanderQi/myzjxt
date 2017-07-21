@@ -119,7 +119,7 @@ rule "feederLine"
         		Equipment eq = (Equipment)equipments.get(i);
         		String Name = eq.getName();
         		if(eq.prop.IsLocked()){
-        			zjxt_msg.show("【{}】 -- {}",Name,eq.prop.LockedInfo);
+        			zjxt_msg.show("【{}】本次略过,存在闭锁信息:{}",Name,eq.prop.LockedInfo);
         		 	continue;
         		 }
         		//String eid = eq.getMrID();			
@@ -259,7 +259,8 @@ function boolean handleLimitUp(Equipment eq) {
 					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
 					commandContent.setAction("【{}】降档操作", eq.getName());
 					commandContent.setReason("当前电压:{}V,当前档位:{}档,判断为电压越上限", eq.U, eq.currentStep);
-					commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, false), eq.currentStep-1);
+					commandContent.setReason("当前电压平均值:{} UA:{} UB:{} UC:{},{}相最高,档位:{}档,判断为电压越上限",eq.Uavg,eq.UA,eq.UB,eq.UC,eq.UmaxName,eq.currentStep);
+					commandContent.setExpect("档位为:{}档", eq.currentStep-1);
 					sendYK(eq, 0, commandContent.toString());
 					return true;
 				}
@@ -320,8 +321,8 @@ function boolean handleLimitLo(Equipment eq) {
 				eq instanceof zTransformerFormer) { //调压器、调压变
 				zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
 				commandContent.setAction("【{}】升档操作", Name);
-				commandContent.setReason("当前电压:{}V,档位:{}档,判断为电压越下限",eq.U, eq.currentStep);
-				commandContent.setExpect("电压为:{}V,档位为:{}档", caculateU2(eq, true), eq.currentStep+1);
+				commandContent.setReason("当前电压平均值:{} UA:{} UB:{} UC:{},{}相最低,档位:{}档,判断为电压越下限",eq.Uavg,eq.UA,eq.UB,eq.UC,eq.UminName,eq.currentStep);
+				commandContent.setExpect("档位为:{}档", eq.currentStep+1);
 				sendYK(eq, 1, commandContent.toString());
 				return true;
 			} 
@@ -354,9 +355,10 @@ function void sendYK(Equipment e, double value, String info) {
 			action = "降档";
 			step = step-1;
 		}
-		String ykname = e.getName()+"-开关遥控";
+		String ykname = e.getName()+"-档位";
 		//zjxt_msg.show(ykname);
-		e.prop.setykByName((int)value, ykname, kind, action, info, info);	
+		e.prop.setykByName((int)value, ykname, kind, action, info, info);
+		//zjxt_msg.show("*【{}】已下发命令", ykname);	
 		e.prop.SetTarget((float)e.currentStep, (float)step);
 	}else{
 		String action = "";
@@ -586,8 +588,8 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 	String sv = round(volRate * 100);	
 	String ename = e.getName();
 	
-	if(e.U > e.limit.upup) { //电压越上限
-		zjxt_msg.show("节点【{}】当前电压越考核上限, U：{}V, 考核上限：{}V", ename, e.U, e.limit.upup);
+	if(e.Uavg > e.limit.upup) { //3相电压最小相越上限
+		zjxt_msg.show("节点【{}】当前电压平均值越考核上限, U:{} UA:{} UB:{} UC:{}, 考核上限：{}V",ename,e.Uavg,e.UA,e.UB,e.UC,e.limit.upup);
 		boolean ret =  handleLimitUp(e);  //本级处理
 		if(!ret) //本级处理不了,找上级处理
 		{
@@ -614,8 +616,8 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 			}else
 				zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越下限数量多于越上限数量,不能进行降压处理.",pname);
 		} 
-	} else if(e.U < e.limit.lolo) { //电压越下限
-		zjxt_msg.show("节点【{}】当前电压越考核下限, U：{}V, 考核下限：{}V", ename, e.U, e.limit.lolo);
+	} else if(e.Umin < e.limit.lolo) { //3相电压最小相电压越下限
+		zjxt_msg.show("节点【{}】当前{}相电压越考核下限, UA:{} UB:{} UC:{}, 考核下限：{}V",ename,e.UminName,e.UA,e.UB,e.UC, e.limit.lolo);
 		boolean ret = handleLimitLo(e);
 		if(!ret) 
 		{

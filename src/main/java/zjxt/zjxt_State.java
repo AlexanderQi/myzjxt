@@ -139,8 +139,7 @@ public class zjxt_State {
 					if(val.LockStartTime != null) {
 						long lockZero = val.LockStartTime.getTime()/(1000*3600*24)*(1000*3600*24)-TimeZone.getDefault().getRawOffset(); //闭锁时间当天零点
 						long curZero = curDate.getTime()/(1000*3600*24)*(1000*3600*24)-TimeZone.getDefault().getRawOffset(); //当前时间当天零点
-						if ((curZero-lockZero)/1000/60/60/24>=1 ||
-								getActionCount(val.ELEMENTID) < ActNum) {
+						if ((curZero-lockZero)/1000/60/60/24>=1) {
 							val.ActDatetime = curDate;
 							val.LockStartTime = null;
 							val.ActNumber = 0;
@@ -151,8 +150,7 @@ public class zjxt_State {
 					} else { //闭锁时间为空
 						Calendar cal = Calendar.getInstance();
 						if((cal.get(Calendar.HOUR_OF_DAY)==0 &&
-								cal.get(Calendar.MINUTE)<=5) ||
-								getActionCount(val.ELEMENTID) < ActNum) {
+								cal.get(Calendar.MINUTE)<=5)) {
 							val.ActDatetime = curDate;
 							val.LockStartTime = null;
 							val.ActNumber = 0;
@@ -160,10 +158,8 @@ public class zjxt_State {
 							SaveOne(val.ELEMENTID);
 							zjxt_msg.showwarn("{}动作次数闭锁已解锁", zjxt_CimBuild.getEquipmentById(val.ELEMENTID).getName());
 						}
-					}
-					
+					}		
 				}
-
 			}
 		} catch (Exception e) {
 			throw new Exception("AutoUnLock->" + e.toString()+" id:"+idString + ",闭锁状态:"+val.ActionOutState);
@@ -221,11 +217,6 @@ public class zjxt_State {
 	}
 
 	public static void SetActNumLock(String elementId) throws Exception {
-		
-		//////////////////////////////////////////////////////////////////
-		//
-		//该函数功能由 预置闭锁功能 兼任
-		//////////////////////////////////////////////////////////////////
 		zState val = GetStateItem(elementId);
 		val.ActNumber++;	
 		int ActNum = -1;
@@ -236,7 +227,7 @@ public class zjxt_State {
 			ActNum = (int)lv.up;
 		}
 		
-		int actCount = getActionCount(elementId);
+		int actCount = val.ActNumber; //getActionCount(elementId);
 //		val.ActionOutState = Integer.toString(val.ActNumber);  //2015-1-13 动作状态保存当前设备动作次数
 		if (actCount >= ActNum) {
 			val.ActDatetime = new Date();

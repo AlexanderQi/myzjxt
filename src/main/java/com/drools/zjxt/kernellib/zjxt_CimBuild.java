@@ -17,6 +17,7 @@ import zjxt.zjxt_ProtectionTable;
 import zjxt.zjxt_State;
 import zjxt.zjxt_msg;
 import zjxt.zjxt_topo.ControlParam;
+import zjxt.zjxt_topo.zNode;
 import zjxt2_app.zApf;
 import zjxt2_app.zTpunbalance;
 
@@ -1192,6 +1193,35 @@ public class zjxt_CimBuild {
 		}
 	}
 	
+	public static void calcUabc(zNode n){
+		n.Uavg = (n.UA+n.UB+n.UC)/3;
+		if(n.UA>=n.UB && n.UA>=n.UC){
+			n.Umax = n.UA;
+			n.UmaxName = "A";
+		}
+		else if(n.UB>=n.UA && n.UB>=n.UC){
+			n.Umax = n.UB;
+			n.UmaxName = "B";
+		}
+		else {
+			n.Umax = n.UC;
+			n.UmaxName = "C";
+		}
+		
+		if(n.UA<=n.UB && n.UA<=n.UC){
+			n.Umin = n.UA;
+			n.UminName = "A";
+		}
+		else if(n.UB<=n.UA && n.UB <= n.UC){
+			n.Umin = n.UB;
+			n.UminName = "B";
+		}
+		else {
+			n.Umin = n.UC;
+			n.UminName = "C";
+		}
+	}
+	
 	public static void refreshNodeMesure() {
 		try {
 			for(PowerSystemResource p :cbList) {
@@ -1274,9 +1304,11 @@ public class zjxt_CimBuild {
 				} else if(p instanceof zTransformerFormer) {
 					p.controlState = p.prop.CanControl();
 					p.U = p.prop.getyc("UYCID");
-					p.I = p.prop.getyc("IYCID");
-					p.P = p.prop.getyc("PYCID");
-					p.I = p.prop.getyc("IYCID");
+					p.UA = p.prop.getyc("UAYCID");
+					p.UB = p.prop.getyc("UBYCID");
+					p.UC = p.prop.getyc("UCYCID");
+					calcUabc(p);
+					
 					p.Q = p.prop.getyc("QYCID");
 					p.loadFactor = Math.sqrt(Math.pow(p.P, 2)+Math.pow(p.Q, 2)) /p.capacity;
 					p.currentStep = (int)p.prop.getyc("TAPCHANGERYCID");
@@ -1650,8 +1682,8 @@ public class zjxt_CimBuild {
 	    			}
 	    		}
 	    	} else if(e instanceof zTransformerFormer) {
-	    		if(e.U>250 ||
-		    		e.U<180) {
+	    		if(e.U>=280 ||
+		    		e.U<=150) {
 		    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!",Name, e.U);
 		    		e.prop.SetException("电压量测异常");
 		    		e.isMeasureError = true;

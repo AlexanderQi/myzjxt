@@ -1536,7 +1536,11 @@ public class zjxt_Initialize {
 					return;
 				}
 				tf.U = tf.property.getyc("UYCID");
-				tf.P = tf.property.getyc("PYCID");
+				tf.UA = tf.property.getyc("UAYCID");
+				tf.UB = tf.property.getyc("UBYCID");
+				tf.UC = tf.property.getyc("UCYCID");
+				
+				//tf.P = tf.property.getyc("PYCID");
 				tf.Q = tf.property.getyc("QYCID");
 				tf.prop = tf.property;
 			}						
