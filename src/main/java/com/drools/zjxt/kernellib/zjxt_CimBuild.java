@@ -1194,7 +1194,10 @@ public class zjxt_CimBuild {
 	}
 	
 	public static void calcUabc(zNode n){
+		//设150为电压非法值下限。
+		float ux = 150;
 		n.Uavg = (n.UA+n.UB+n.UC)/3;
+		if(n.Uavg <= ux)n.Uavg = n.U;
 		if(n.UA>=n.UB && n.UA>=n.UC){
 			n.Umax = n.UA;
 			n.UmaxName = "A";
@@ -1207,6 +1210,7 @@ public class zjxt_CimBuild {
 			n.Umax = n.UC;
 			n.UmaxName = "C";
 		}
+		if(n.Umax <= ux) n.Umax = n.U;
 		
 		if(n.UA<=n.UB && n.UA<=n.UC){
 			n.Umin = n.UA;
@@ -1220,6 +1224,7 @@ public class zjxt_CimBuild {
 			n.Umin = n.UC;
 			n.UminName = "C";
 		}
+		if(n.Umin<ux) n.Umin = n.U;
 	}
 	
 	public static void refreshNodeMesure() {
@@ -1232,6 +1237,7 @@ public class zjxt_CimBuild {
 					p.I = p.prop.getyc("LINEIYCID");
 					p.currentStep = (int)p.prop.getyc("TAPCHANGERYCID");
 					p.loadFactor = Math.sqrt(3) * p.U * p.I / p.capacity / 1000;
+					
 //					if(XMap.get(p.getMrID()) != null && XMap.get(p.getMrID())!=0.0f) {
 //						if(XMap.get(p.getMrID())!=0.0f) {
 //							p.X  = XMap.get(p.getMrID());
@@ -1307,7 +1313,6 @@ public class zjxt_CimBuild {
 					p.UA = p.prop.getyc("UAYCID");
 					p.UB = p.prop.getyc("UBYCID");
 					p.UC = p.prop.getyc("UCYCID");
-					calcUabc(p);
 					
 					p.Q = p.prop.getyc("QYCID");
 					p.loadFactor = Math.sqrt(Math.pow(p.P, 2)+Math.pow(p.Q, 2)) /p.capacity;
@@ -1362,6 +1367,7 @@ public class zjxt_CimBuild {
 //					}
 					p.kind = CommonListCode.REACTIVE_POWER_KIND;
 				}
+				calcUabc(p);
 			}
 		} catch(Exception e) {
 			zjxt_msg.showwarn("refreshNodeMesure()->", e);

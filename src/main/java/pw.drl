@@ -47,7 +47,7 @@ rule "feederLine"
     	String cs = feederLine.property.CanControl(); 
     	zjxt_msg.show("【{}】状态为 {}.",feederName,cs);
     	if(cs.equals(zjxt_State.cs_bucanyu)) {
-    		zjxt_msg.show(feederName+"退出计算.");
+    		zjxt_msg.show(feederName+"退出计算.");  
     		return;
     	}
     	
@@ -254,12 +254,18 @@ function boolean handleLimitUp(Equipment eq) {
 					commandContent.setExpect("电压为:{}", round(eq.U-ΔU));
 					sendYT(eq, eq.controlParam.volCtrlModytval, commandContent.toString(), zjxt_YTKind.WORK_MODE);
 					return true;
-				}else if(eq instanceof zTransformerFormer || eq instanceof zVoltageRegulator) {
+				}else if(eq instanceof zTransformerFormer) {			
+					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
+					commandContent.setAction("【{}】降档操作", eq.getName());
+					commandContent.setReason("当前电压平均值:{} UA:{} UB:{} UC:{},档位:{}档,判断为电压越上限",eq.Uavg,eq.UA,eq.UB,eq.UC,eq.currentStep);
+					commandContent.setExpect("档位为:{}档", eq.currentStep-1);
+					sendYK(eq, 0, commandContent.toString());
+					return true;
+				}else if(eq instanceof zVoltageRegulator) {
 				
 					zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
 					commandContent.setAction("【{}】降档操作", eq.getName());
-					commandContent.setReason("当前电压:{}V,当前档位:{}档,判断为电压越上限", eq.U, eq.currentStep);
-					commandContent.setReason("当前电压平均值:{} UA:{} UB:{} UC:{},{}相最高,档位:{}档,判断为电压越上限",eq.Uavg,eq.UA,eq.UB,eq.UC,eq.UmaxName,eq.currentStep);
+					commandContent.setReason("当前电压值:{} 档位:{}档,判断为电压越上限",eq.Uavg,eq.currentStep);
 					commandContent.setExpect("档位为:{}档", eq.currentStep-1);
 					sendYK(eq, 0, commandContent.toString());
 					return true;
@@ -317,15 +323,22 @@ function boolean handleLimitLo(Equipment eq) {
 				}
 				eq.prop.SetAlarm("【{}】当前电压:{},电压越下限,无调节手段!",Name,eq.U);
 				return false;
-			} else if(eq instanceof zVoltageRegulator ||
-				eq instanceof zTransformerFormer) { //调压器、调压变
+			} else if(eq instanceof zTransformerFormer) { //调压器
 				zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
 				commandContent.setAction("【{}】升档操作", Name);
-				commandContent.setReason("当前电压平均值:{} UA:{} UB:{} UC:{},{}相最低,档位:{}档,判断为电压越下限",eq.Uavg,eq.UA,eq.UB,eq.UC,eq.UminName,eq.currentStep);
+				commandContent.setReason("当前电压平均值:{} UA:{} UB:{} UC:{},档位:{}档,判断为电压越下限",eq.Uavg,eq.UA,eq.UB,eq.UC,eq.currentStep);
 				commandContent.setExpect("档位为:{}档", eq.currentStep+1);
 				sendYK(eq, 1, commandContent.toString());
 				return true;
-			} 
+			}else if(eq instanceof zVoltageRegulator) { //调压器
+				zjxt_CommandContent commandContent = new zjxt_CommandContent(eq.controlState);
+				commandContent.setAction("【{}】升档操作", Name);
+				commandContent.setReason("当前电压值:{} 档位:{}档,判断为电压越下限",eq.Uavg,eq.currentStep);
+				commandContent.setExpect("档位为:{}档", eq.currentStep+1);
+				sendYK(eq, 1, commandContent.toString());
+				return true;
+			}  
+			
 		return true;
 	}
 }
@@ -644,7 +657,7 @@ function void checkU(Equipment e, float volRate,int overUp,int overLo) {
 			else
 			  zjxt_msg.show("上级节点【{}】拒绝动作,判断当前馈线越上限数量多于越下限数量,不能进行升压处理.",pname);
 		}
-	}else if(e.U < e.limit.up && e.U > e.limit.lo){//电压情况良好
+	}else if(e.Uavg < e.limit.up && e.U > e.limit.lo){//电压情况良好
 		zjxt_msg.show("节点【{}】当前电压良好, U：{}V, 将设为功率因数优先模式。", ename, e.U);
 		zjxt_CommandContent commandContent = new zjxt_CommandContent(e.controlState);
 		commandContent.setAction("调节【{}】工作模式为功率因数优先模式", ename);
