@@ -242,9 +242,9 @@ public class zjxt_Cmd {
 //					+ d + "')>=300 or dealtag=7"; 
 			state.execute(sql);
 			int c = state.getUpdateCount();
-			zjxt_msg.showwarn("删除实时库中超过5分钟的命令记录数量:" + c);
+			zjxt_msg.showwarn("删除库中超过5分钟的命令记录数量:" + c);
 			c = DelExpireCmdObj();
-			zjxt_msg.showwarn("删除内存中超过5分钟命令对象数量:" + c);
+			//zjxt_msg.showwarn("删除内存中超过5分钟命令对象数量:" + c);
 
 			sql = "select * from TBLCOMMAND t";
 			ResultSet rs = state.executeQuery(sql);
@@ -307,7 +307,7 @@ public class zjxt_Cmd {
 								equip.prop.AddSelfActNum(true, cmdObj.actionType);
 								break;
 							case CommandDealTagCode.Refused:
-								zjxt_msg.show(equip.getName() + "命令执行成功失败!");
+								zjxt_msg.show(equip.getName() + "命令执行失败!");
 								failCmdList.add(cmdElementId);
 //								equip.prop.SetAlarm("执行失败!");
 								equip.prop.setResult("执行失败!");

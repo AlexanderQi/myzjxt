@@ -1498,7 +1498,7 @@ public class zjxt_CimBuild {
 	    			int tap = ((zVoltageRegulator)p).currentStep;
 					
 					if(cs.equals(zjxt_State.cs_Kongzhi)){
-						int ch = ((zVoltageRegulator)p).property.CheckTarget(200,tap);
+						int ch = ((zVoltageRegulator)p).property.CheckTarget(300,tap);
 						zjxt_msg.show(name + " 获取目标执行反馈:"+ch);
 						if(ch == 1){
 							zjxt_msg.show(name+" 命令执行成功");

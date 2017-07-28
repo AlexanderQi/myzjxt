@@ -217,7 +217,7 @@ public class zjxt_Property {
 			return 0;
 		} else {
 
-			if (Math.abs(TargetValue - curValue) < 0.001) {
+			if (Math.abs(TargetValue - curValue) < 0.01) {
 				// if(Math.abs(Owner.oldU - Owner.U)>0.1) {
 				TargetSetTime = null;
 				return 1; // 成功
