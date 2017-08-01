@@ -319,8 +319,9 @@ public class zjxt_topo {
 		public List<zNode> ChildNodes = new ArrayList<zNode>();
 		public zTerminal t1, t2, t3;
 		public zjxt_Property prop;
-
+		
 		public zFeederLine line;
+		public String UYCID = null;
 		public float U;
 		public float UA;
 		public float UB;
@@ -340,6 +341,7 @@ public class zjxt_topo {
 		public float oldPF;
 		public float TargetPF = 0; // 目标功率因数
 		public float workMode = 0; // 工作模式
+		public int controlmode = 0; //1 遥调 2遥控
 		public float R = 0;
 		public float X = 60; // 到首端的线路电抗
 		public float thdu; // 总电压谐波含有率

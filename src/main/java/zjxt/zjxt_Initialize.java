@@ -645,7 +645,7 @@ public class zjxt_Initialize {
 					obj.IsItem = false;
 					obj.capacity = rSet.getDouble("RATEDCAPACITY");
 					obj.volChange = rSet.getFloat("VOLTAGECHANGE");//投切电压变化值
-					
+					obj.controlmode = rSet.getInt("CONTROLMODEL"); //控制模式 1 遥调 2遥控
 					Mapping(rSet, obj);
 				}
 				zjxt_msg.show("初始化补偿电容子组...");

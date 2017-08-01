@@ -73,7 +73,7 @@ rule "feederLine"
 	    	//zjxt_msg.show("{} 电压等级:{}", equiName, vlid);
 	    	boolean bool = false;
 	    	if(!equi.controlState.equals(zjxt_State.cs_bucanyu)) {
-	    		bool = zjxt_CimBuild.filterMeasure(equi);
+	    		bool = zjxt_CimBuild.filterMeasure(equi);//2017-8-1 返回电压是否合法 不检查Q,I,PF关联性。
 	    		if(equi.hasDeadData) {
 	    			zjxt_msg.show("节点【{}】含有死数据!", equiName);
 	    		}
@@ -91,7 +91,7 @@ rule "feederLine"
 			}
 			equi.limit = lv;
 			float u = equi.U;
-			zjxt_msg.show("节点【{}】当前电压：{}V, 本时段上限:{}V,下限:{}V,上上限:{}V,下下限:{}V ", equiName,u,lv.up,lv.lo,lv.upup,lv.lolo);
+			zjxt_msg.show("节点【{}】当前电压：{}V, 本时段上限:{}V,下限:{}V,上上限:{}V,下下限:{}V YCID:{}", equiName,u,lv.up,lv.lo,lv.upup,lv.lolo,equi.UYCID);
 			if(!equi.hasDeadData && !bool&& !equi.controlState.equals(zjxt_State.cs_bucanyu)) {
 				if(u<=lv.upup && u>=lv.lolo) { //电压
 					qualifiedSize++;
@@ -277,14 +277,14 @@ function boolean handleLimitUp(Equipment eq) {
 /**
 * 电压越下限
 */
-function boolean handleLimitLo(Equipment eq) {
+function boolean handleLimitLo(Equipment eq) {   
 		String Name = eq.getName();
 		if(!canOnorUp(eq)) {
 			eq.prop.SetAlarm("【{}】当前不符合控制条件，存在闭锁或保护。",Name);
 			return false;
 		} else {
 			if(eq instanceof zCapacitor) { 
-			    if(eq.vlid == 10000){
+			    if(eq.controlmode == 2){ //控制模式为遥控  (1 遥调 2遥控)
 			    	//zjxt_msg.show("{} 10000V rule",Name);
 			    	zCapacitor cap = (zCapacitor)eq;
 			    	zCapacitor capitem = cap.getActItem(0);//查找状态是切除（未投入）的一个电容子组

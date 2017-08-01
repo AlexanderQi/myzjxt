@@ -1232,6 +1232,7 @@ public class zjxt_CimBuild {
 			for(PowerSystemResource p :cbList) {
 				if(p instanceof zVoltageRegulator) {
 					p.controlState = p.prop.CanControl();
+					if("不参与计算".equals(p.controlState)) continue;
 					//p.PF = p.prop.getyc("PFYCID");
 					p.U = p.prop.getyc("OUTPUTUABYCID");
 					p.I = p.prop.getyc("LINEIYCID");
@@ -1247,11 +1248,17 @@ public class zjxt_CimBuild {
 					p.kind = CommonListCode.VOLTAGE_KIND;
 					
 				} else if(p instanceof zCapacitor) {
+					p.controlState = p.prop.CanControl();
+					if("不参与计算".equals(p.controlState)) continue;
 					if(((zCapacitor) p).vlid==10000) {
 						p.X = 5;
 					}
-					p.controlState = p.prop.CanControl();
 					p.U = p.prop.getyc("UYCID");
+					p.UYCID = p.prop.getycid("UYCID");
+					//////////////////////////////////
+					//2017-8-1 潍坊项目默认三相电压值为A相值，如已有三相量测可注释本行，
+					p.UA = p.UB = p.UC = p.U;					
+					//////////////////////////////////
 					p.I = p.prop.getyc("IYCID");
 					p.Qc = p.prop.getyc("QCYCID");
 					p.PF = p.prop.getyc("PFYCID");
@@ -1292,6 +1299,7 @@ public class zjxt_CimBuild {
 					p.kind = CommonListCode.REACTIVE_POWER_KIND;
 				} else if(p instanceof zSVG) {
 					p.controlState = p.prop.CanControl();
+					if("不参与计算".equals(p.controlState)) continue;
 					p.U = ((zSVG)p).property.getyc("UYCID");
 					p.P = p.prop.getyc("PYCID");
 					p.I = p.prop.getyc("IYCID");
@@ -1309,6 +1317,7 @@ public class zjxt_CimBuild {
 					p.kind = CommonListCode.REACTIVE_POWER_KIND;
 				} else if(p instanceof zTransformerFormer) {
 					p.controlState = p.prop.CanControl();
+					if("不参与计算".equals(p.controlState)) continue;
 					p.U = p.prop.getyc("UYCID");
 					p.UA = p.prop.getyc("UAYCID");
 					p.UB = p.prop.getyc("UBYCID");
@@ -1326,6 +1335,7 @@ public class zjxt_CimBuild {
 					p.kind = CommonListCode.VOLTAGE_KIND;
 				} else if(p instanceof zApf) {
 					p.controlState = p.prop.CanControl();
+					if("不参与计算".equals(p.controlState)) continue;
 					p.U = p.prop.getyc("UYCID");
 					p.I = p.prop.getyc("IYCID");
 					p.Q = p.prop.getyc("QYCID");
@@ -1349,6 +1359,7 @@ public class zjxt_CimBuild {
 					p.kind = CommonListCode.REACTIVE_POWER_KIND;
 				} else if(p instanceof zTpunbalance) {
 					p.controlState = p.prop.CanControl();
+					if("不参与计算".equals(p.controlState)) continue;
 					p.U = p.prop.getyc("UYCID");
 					p.I = p.prop.getyc("IYCID");
 					p.Q = p.prop.getyc("QYCID");
@@ -1663,30 +1674,31 @@ public class zjxt_CimBuild {
 //	    			e.isMeasureError = true;
 //	    			return e.isVolError;
 //	    		}
-	    		if(e instanceof zCapacitor) { //针对电容器判断无功、功率因数量测的正确性
-	    			double tmp = 0.0;
-	    			if(e.vlid==10000) {
-	    				if(e.PF == 1 && Math.abs(e.Q)<=0.5)
-	    				{
-	    					e.isMeasureError = false;
-	    					return false;
-	    				}
-	    				tmp = Math.abs(e.Q/(Math.sqrt(3)*e.U*e.I*Math.sqrt(1-Math.pow(e.PF, 2))) * 1000);
-	    			} else {
-	    				if(e.PF == 1 && Math.abs(e.Q)<=0.5)
-	    				{
-	    					e.isMeasureError = false;
-	    					return false;
-	    				}
-	    				tmp = Math.abs(e.Q/(3*e.U*e.I*Math.sqrt(1-Math.pow(e.PF, 2))) * 1000);
-	    			}
-	    			zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", Name,String.format("%.2f", tmp));
-	    			if(0.8>=tmp || tmp>=1.2) {
-	    				zjxt_msg.showwarn("【{}】当前无功:{}kVar,功率因数:{},与当前电压{}V、电流{}A不对应!", Name, e.Q, e.PF, e.U, e.I);
-	    				e.isMeasureError = true;
-	    				return e.isVolError;
-	    			}
-	    		}
+//	    		if(e instanceof zCapacitor) { //针对电容器判断无功、功率因数量测的正确性
+//	    			double tmp = 0.0;
+//	    			if(e.vlid==10000) {
+//	    				if(e.PF == 1 && Math.abs(e.Q)<=0.5)
+//	    				{
+//	    					e.isMeasureError = false;
+//	    					return false;
+//	    				}
+//	    				tmp = Math.abs(e.Q/(Math.sqrt(3)*e.U*e.I*Math.sqrt(1-Math.pow(e.PF, 2))) * 1000);
+//	    			} else {
+//	    				if(e.PF == 1 && Math.abs(e.Q)<=0.5)
+//	    				{
+//	    					e.isMeasureError = false;
+//	    					return false;
+//	    				}
+//	    				tmp = Math.abs(e.Q/(3*e.U*e.I*Math.sqrt(1-Math.pow(e.PF, 2))) * 1000);
+//	    			}
+//	    			zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", Name,String.format("%.2f", tmp));
+//	    			if(0.8>=tmp || tmp>=1.2) {
+//	    				zjxt_msg.showwarn("【{}】当前无功:{}kVar,功率因数:{},与当前电压{}V、电流{}A不对应!", Name, e.Q, e.PF, e.U, e.I);
+//	    				e.isMeasureError = true;
+//	    				return e.isVolError;
+//	    			}
+//	    		}
+	    		   		
 	    	} else if(e instanceof zTransformerFormer) {
 	    		if(e.U>=280 ||
 		    		e.U<=150) {
@@ -1709,13 +1721,13 @@ public class zjxt_CimBuild {
 	    			e.isMeasureError = true;
 		    		return e.isVolError;
 	    		}
-	    		double tmp = Math.abs(e.Q/(3*e.U*e.I/1000)/Math.sqrt(1-Math.pow(e.PF, 2)));
-	    		zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", Name, String.format("%.2f", tmp));
-	    		if(tmp<=0.8 || tmp>=1.2) {
-	    			zjxt_msg.showwarn("【{}】当前无功:{}kVar,功率因数:{}V,与当前电压{}V、电；流{}A不对应！", Name, e.Q, e.PF, e.U, e.I);
-	    			e.isMeasureError = true;
-	    			return e.isVolError;
-	    		}
+//	    		double tmp = Math.abs(e.Q/(3*e.U*e.I/1000)/Math.sqrt(1-Math.pow(e.PF, 2)));
+//	    		zjxt_msg.show("【{}】验证无功、功率因数量测的正确性值(0.8~1.2范围内为正常)：{}", Name, String.format("%.2f", tmp));
+//	    		if(tmp<=0.8 || tmp>=1.2) {
+//	    			zjxt_msg.showwarn("【{}】当前无功:{}kVar,功率因数:{}V,与当前电压{}V、电；流{}A不对应！", Name, e.Q, e.PF, e.U, e.I);
+//	    			e.isMeasureError = true;
+//	    			return e.isVolError;
+//	    		}
 	    	}
 			//System.out.println("TEST");
 			e.isMeasureError = false;

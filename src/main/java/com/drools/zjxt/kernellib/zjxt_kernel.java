@@ -69,7 +69,7 @@ public class zjxt_kernel {
 					System.in));
 			ShowDivideLine();
 			mlog.warn(zjxt_msg.GetDateTime()
-					+ " 系统开始运行. Ver: ZJXT2.1.201707192108"); //Ver: ZJXT2.0.201603231045 2016-3-23 10:45 2.0第一次定版本， 1.0大概是2014年的事情吧
+					+ " 系统开始运行. Ver: ZJXT2.1.201708011934"); //Ver: ZJXT2.0.201603231045 2016-3-23 10:45 2.0第一次定版本， 1.0大概是2014年的事情吧
 			mlog.info(zjxt_ConnectionPool.Instance().getDbInfo());
 			//			if (!jkParam.CheckLicense()) {
 //				mlog.warn("已启动但证书错误，请确认程序已被授权.(数小时后停止运行)\r\n授权方法，将程序目录下license.txt发给程序提供方.\r\n");

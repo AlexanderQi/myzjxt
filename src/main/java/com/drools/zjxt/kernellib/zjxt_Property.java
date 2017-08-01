@@ -268,6 +268,14 @@ public class zjxt_Property {
 		}
 		throw new Exception(Owner.getName() + "getYc->" + Name + " 未找到.");
 	}
+	
+	public String getycid(String Name) throws Exception {
+		PropertyItem item = getItem(Name);
+		if (item != null) {
+			return item.id;
+		}
+		throw new Exception(Owner.getName() + "getycid->" + Name + " 未找到.");
+	}
 
 	public Date getyctime(String Name) throws Exception {
 		PropertyItem item = getItem(Name);
@@ -385,7 +393,7 @@ public class zjxt_Property {
 
 		// Kind ：控制或建议
 		if (Kind.equals(zjxt_msg.KongZhi)) { // Kind ：控制或建议
-			zjxt_yk yk = measure.GetYkByName(eq.getMrID(), ykname);
+			zjxt_yk yk = measure.GetYkByName(Owner.getMrID(), ykname);
 			if (yk == null) {
 				zjxt_msg.showwarn("【{}】{}未设置.", eq.getName(), ykname);
 				return false;
