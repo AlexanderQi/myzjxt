@@ -91,7 +91,8 @@ rule "feederLine"
 			}
 			equi.limit = lv;
 			float u = equi.U;
-			zjxt_msg.show("节点【{}】当前电压：{}V, 本时段上限:{}V,下限:{}V,上上限:{}V,下下限:{}V YCID:{}", equiName,u,lv.up,lv.lo,lv.upup,lv.lolo,equi.UYCID);
+			zjxt_msg.show("节点【{}】当前电压：{}V, 本时段上限:{}V,下限:{}V,上上限:{}V,下下限:{}V YCID:{} ActNum:{}",
+			 equiName,u,lv.up,lv.lo,lv.upup,lv.lolo,equi.UYCID,equi.ActNumber);
 			if(!equi.hasDeadData && !bool&& !equi.controlState.equals(zjxt_State.cs_bucanyu)) {
 				if(u<=lv.upup && u>=lv.lolo) { //电压
 					qualifiedSize++;
@@ -512,17 +513,42 @@ function double getTargetPF(Equipment e, double ΔQc) {
 	return targetPF;
 }
 
-/**
- * 是否可切或者可降
- **/
-function boolean canOfforDown(Equipment e) {
-	//String cs = e.prop.CanControl();
+function boolean canAct(Equipment e){
 	String cs = e.controlState;
 	boolean isLocked = e.prop.IsLocked();
 	boolean isProtected = e.prop.IsProtected();
 	boolean isMeasureError = e.isMeasureError;
 	String equiName = e.getName();
-	zjxt_msg.show("【{}】控制状态:{} 量测是否异常:{}",equiName,cs,isMeasureError);
+	zjxt_msg.show("【{}】控制状态:{}",equiName,cs);
+	if(isMeasureError){
+		zjxt_msg.show("【{}】量测异常",equiName);
+		return false;
+	}
+	if(isLocked){
+		zjxt_msg.show("【{}】{}", equiName,e.prop.LockedInfo);
+		return false;
+	}
+	if(isProtected){
+		zjxt_msg.show("【{}】{}", equiName,e.prop.ProtectInfo);
+		return false;
+	}	
+	if(e.line.isCanControl()){
+		return true;
+	}else{
+		zjxt_msg.show("【{}】所属馈线闭锁", equiName);
+		return false;
+	}
+	
+	//return true;
+}
+
+/**
+ * 是否可切或者可降
+ **/
+function boolean canOfforDown(Equipment e) {
+	boolean act = canAct(e);
+	if(!act)return false;
+	String equiName = e.getName();
 	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator){
 		int curStep = e.currentStep;
 		int lowStep = e.lowStep;
@@ -531,44 +557,21 @@ function boolean canOfforDown(Equipment e) {
 			return false;
 		}
 	}	
+	/*
 	else if(e instanceof zCapacitor)
 		zjxt_msg.show("【{}】当前工作模式:{}", equiName,e.workMode);
+	*/
+	return true;
 	
-	if(isLocked)
-		zjxt_msg.show("【{}】{}", equiName,e.prop.LockedInfo);
-	if(isProtected)
-		zjxt_msg.show("【{}】{}", equiName,e.prop.ProtectInfo);	
-
-	boolean canControl = e.line.isCanControl() && !cs.equals(zjxt_State.cs_bucanyu) && !isLocked && !isProtected;//&& (e.currentStep>e.lowStep)
-
-	/*
-	if(e instanceof zSVG ||
-		e instanceof zApf ||
-		e instanceof zTpunbalance) {
-		canControl = e.line.isCanControl() && e.isMeasureError == false && !e.controlState.equals(zjxt_State.cs_bucanyu) && !e.prop.IsLocked() && (e.Qc>e.minratedCapacity || e.currentStep>e.lowStep);
-	}*/
-	
-	return canControl;
 }
 
 /**
 * 是否可投或者可升
 **/
 function boolean canOnorUp(Equipment e) {
-	//String cs = e.prop.CanControl();
-	/*boolean canControl = e.line.isCanControl();
-	zjxt_msg.show("控制状态" + canControl);
-	boolean isLock = e.prop.IsLocked();
-	zjxt_msg.show("闭锁" + isLock);
-	*/
-	String cs = e.controlState;
-	boolean isLocked = e.prop.IsLocked();
-	boolean isProtected = e.prop.IsProtected();
-	boolean isMeasureError = e.isMeasureError;
+	boolean act = canAct(e);
+	if(!act)return false;
 	String equiName = e.getName();
-	
-	zjxt_msg.show("【{}】控制状态:{} 量测是否异常:{}", equiName,cs,isMeasureError);
-
 	if(e instanceof zTransformerFormer || e instanceof zVoltageRegulator){
 		int curStep = e.currentStep;
 		int highStep = e.highStep;
@@ -577,13 +580,10 @@ function boolean canOnorUp(Equipment e) {
 			return false;
 		}
 	}
+	/*
 	if(e instanceof zCapacitor)
-		zjxt_msg.show("【{}】当前工作模式:{}", equiName,e.workMode);
-	if(isLocked)
-		zjxt_msg.show("【{}】{}", equiName,e.prop.LockedInfo);
-	if(isProtected)
-		zjxt_msg.show("【{}】{}", equiName,e.prop.ProtectInfo);	
-	return e.line.isCanControl() && !e.isMeasureError && !cs.equals(zjxt_State.cs_bucanyu) && !isLocked && !isProtected ;//&&(e.currentStep<e.highStep)
+		zjxt_msg.show("【{}】当前工作模式:{}", equiName,e.workMode);*/
+	return true;
 }
 
 function String round(double value) {

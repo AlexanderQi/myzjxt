@@ -1,10 +1,16 @@
 
 <c3p0-config>
     
-    <default-config>
+    <default-config-WF>
         <property name="user">root</property>
         <property name="password">123456</property>
-        <property name="jdbcUrl">jdbc:mysql://127.0.0.1/pwtbl_wf?useUnicode=true&amp;characterEncoding=UTF-8</property>
+        <property name="jdbcUrl">jdbc:mysql://127.0.0.1/pwtbl_wf8-1?useUnicode=true&amp;characterEncoding=UTF-8</property>
+    </default-config-WF>
+    
+     <default-config>
+        <property name="user">root</property>
+        <property name="password">123456</property>
+        <property name="jdbcUrl">jdbc:mysql://127.0.0.1/pwtbl_longquan1.2?useUnicode=true&amp;characterEncoding=UTF-8</property>
     </default-config>
     
     <default-config1>

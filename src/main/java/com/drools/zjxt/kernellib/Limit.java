@@ -38,7 +38,7 @@ public class Limit {
 	public static float upper_tyqpc = 200f;
 	public static float lower_tyqpc = 100f;
 
-	public static int ActNum = 40;
+	public static int ActNum = 80;
 
 	public static java.util.Date ChangeTime = new java.util.Date();
 

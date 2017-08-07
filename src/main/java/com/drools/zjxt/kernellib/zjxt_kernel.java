@@ -69,7 +69,7 @@ public class zjxt_kernel {
 					System.in));
 			ShowDivideLine();
 			mlog.warn(zjxt_msg.GetDateTime()
-					+ " 系统开始运行. Ver: ZJXT2.1.201708011934"); //Ver: ZJXT2.0.201603231045 2016-3-23 10:45 2.0第一次定版本， 1.0大概是2014年的事情吧
+					+ " 系统开始运行. Ver: ZJXT2.1.201708051722"); //Ver: ZJXT2.0.201603231045 2016-3-23 10:45 2.0第一次定版本， 1.0大概是2014年的事情吧
 			mlog.info(zjxt_ConnectionPool.Instance().getDbInfo());
 			//			if (!jkParam.CheckLicense()) {
 //				mlog.warn("已启动但证书错误，请确认程序已被授权.(数小时后停止运行)\r\n授权方法，将程序目录下license.txt发给程序提供方.\r\n");
@@ -106,10 +106,10 @@ public class zjxt_kernel {
 //			int interval = 4321;
 //			if (JkParam.Instance().IsSmartPrj)
 //				interval = 4567;
-			int interval = 4321;
+			int interval = 9991; //ms
 			if (JkParam.Instance().IsSmartPrj)
 				interval = 4567;
-			interval = 15;
+			interval = 19;  //s
 			ScheduledExecutorService service = Executors  
 	                .newSingleThreadScheduledExecutor();
 			service.scheduleAtFixedRate(sRun, 1, interval, TimeUnit.SECONDS);
@@ -159,7 +159,7 @@ public class zjxt_kernel {
 		mlog.warn("=======================================================================================");
 	}
 
-	private static int timeTag1 = 12;
+	private static int timeTag1 = 6;
 	private static int timeTag2 = 3;
 	private static int timeTag3 = 0;
 	private static int TickCount = 0;
@@ -188,7 +188,7 @@ public class zjxt_kernel {
 				timeTag1++;
 				timeTag2++;
 				TickCount++;
-				if (timeTag1 >= 60) {
+				if (timeTag1 >= 30) {
 					timeTag1 = 0;
 					zjxt_msg.RemoveMsg();
 					Limit.Refresh();
@@ -217,7 +217,7 @@ public class zjxt_kernel {
 				
 				
 				
-				if(TickCount==12) { //每隔一分钟刷新一次
+				if(TickCount == 3) { //每隔一分钟刷新一次
 					TickCount = 0;
 					System.out.println("刷新设备运行时间...");
 					for(int i=0; i<zjxt_CimBuild.cbList.size(); i++) {

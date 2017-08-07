@@ -322,6 +322,7 @@ public class zjxt_topo {
 		
 		public zFeederLine line;
 		public String UYCID = null;
+		public int ActNumber = 0;
 		public float U;
 		public float UA;
 		public float UB;

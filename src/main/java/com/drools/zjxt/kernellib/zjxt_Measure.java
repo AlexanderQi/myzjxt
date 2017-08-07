@@ -278,7 +278,7 @@ public class zjxt_Measure {
 				if (zjxt_kernel.jkParam.isJudgeDeadData) // 是否进行死数据判断，正式环境需要为true
 				{
 					if (zjxt_yc.OldValue == zjxt_yc.Value) {
-						zjxt_yc.noResreshSecond += 15;
+						zjxt_yc.noResreshSecond += 19;
 						if (zjxt_yc.noResreshSecond >= (DEAD_DATE_MINUTE * 60)) { // 遥测10分钟未刷新，即为死数据
 							zjxt_yc.NoRefresh = true;
 						}
@@ -557,7 +557,7 @@ public class zjxt_Measure {
 				updateDeadData();
 			}
 		} catch (Exception e) {
-			throw new Exception("Refresh_ycyx()->", e);
+			throw new Exception("Refresh_ycyx()->"+ e.toString());
 		}
 
 	}

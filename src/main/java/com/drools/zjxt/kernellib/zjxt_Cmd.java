@@ -8,6 +8,7 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -33,36 +34,64 @@ public class zjxt_Cmd {
 
 	public static int DelExpireCmdObj()throws Exception {
 		java.util.Date date = getDbTime();//new java.util.Date();
-		int ct = 0;
-		for (int i = cmdlist.size() - 1; i >= 0; i--) {
-			long between = (date.getTime() - cmdlist.get(i).DateTime.getTime()) / 1000;
-			if (between >= 300) {
-				cmdlist.remove(i);
-				ct++;
-			}
-		}
+		int ct = 0;		
+//		for (int i = cmdlist.size() - 1; i >= 0; i--) {
+//			long between = (date.getTime() - cmdlist.get(i).DateTime.getTime()) / 1000;
+//			if (between >= 300) {
+//				cmdlist.remove(i);
+//				ct++;
+//			}
+//		}
+	    Iterator<CmdObj> it = cmdlist.iterator();
+	    long nowtime = date.getTime();
+	    while(it.hasNext()){
+	    	CmdObj co = it.next();
+	    	long bw = (nowtime - co.DateTime.getTime()) / 1000;
+	    	if(bw >= 300){
+	    		it.remove();
+	    		ct++;
+	    	}
+	    }
+		
 		return ct;
 	}
 
 	public static void DelCmdObj(String CmdId) {
-		int index = -1;
-		for (int i = 0; i < cmdlist.size(); i++) {
-			if (cmdlist.get(i).CmdId.equals(CmdId)) {
-				index = i;
+//		int index = -1;
+//		for (int i = 0; i < cmdlist.size(); i++) {
+//			if (cmdlist.get(i).CmdId.equals(CmdId)) {
+//				index = i;
+//				break;
+//			}
+//		}
+//		if (index != -1)
+//			cmdlist.remove(index);		
+		Iterator<CmdObj> it = cmdlist.iterator();
+		while(it.hasNext()){
+			CmdObj co = it.next();
+			if(co.CmdId.equals(CmdId)){
+				it.remove();
 				break;
 			}
 		}
-		if (index != -1)
-			cmdlist.remove(index);
 	}
 
 	public static CmdObj GetCmdObj(String CmdId) {
-		for (int i = 0; i < cmdlist.size(); i++) {
-			CmdObj obj = cmdlist.get(i);
-			if (obj.CmdId.equals(CmdId)) {
-				return obj;
-			}
-		}
+//		for (int i = 0; i < cmdlist.size(); i++) {
+//			CmdObj obj = cmdlist.get(i);
+//			if (obj.CmdId.equals(CmdId)) {
+//				return obj;
+//			}
+//		}
+//		return null;
+		
+		CmdObj co = null;
+		Iterator<CmdObj> it = cmdlist.iterator();
+		while(it.hasNext()){
+			co = it.next();
+			if(co.CmdId.equals(CmdId))
+				return co;
+		}		
 		return null;
 	}
 
@@ -244,7 +273,7 @@ public class zjxt_Cmd {
 			int c = state.getUpdateCount();
 			zjxt_msg.showwarn("删除库中超过5分钟的命令记录数量:" + c);
 			c = DelExpireCmdObj();
-			//zjxt_msg.showwarn("删除内存中超过5分钟命令对象数量:" + c);
+			zjxt_msg.showwarn("删除内存中超过5分钟命令对象数量:" + c);
 
 			sql = "select * from TBLCOMMAND t";
 			ResultSet rs = state.executeQuery(sql);

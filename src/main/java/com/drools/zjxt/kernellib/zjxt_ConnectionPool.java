@@ -19,11 +19,11 @@ public class zjxt_ConnectionPool {
 		System.setProperty(c3p0Properties, "c3p0-config-zjxt2.xml");
 		dataSource = new ComboPooledDataSource();
 		dataSource.setCheckoutTimeout(5000);
-		dataSource.setInitialPoolSize(3);
-		dataSource.setMinPoolSize(2);
-		dataSource.setMaxPoolSize(10);
+		dataSource.setInitialPoolSize(9);
+		dataSource.setMinPoolSize(6);
+		dataSource.setMaxPoolSize(15);
 		dataSource.setAcquireIncrement(3); //当前连接池耗尽时,再分配连接线程数量.
-		dataSource.setAcquireRetryAttempts(0);//连接失败后尝试重连次数
+		dataSource.setAcquireRetryAttempts(1);//连接失败后尝试重连次数
 		dataSource.setAcquireRetryDelay(2000);//重连间隔毫秒. 默认1000
 		dataSource.setDriverClass("com.mysql.jdbc.Driver"); //设置jdbc驱动名
 		

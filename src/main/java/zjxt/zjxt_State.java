@@ -129,13 +129,14 @@ public class zjxt_State {
 					} 
 				}
 				if (val.ActionOutState.equals(ls_DongZuo)) {  //动作次数闭锁解除
-					LimitValue lv = Limit.GetActNumLimitEx(val.ELEMENTID);  //2015-1-13 获取该设备或通用动作次数限值
-					int ActNum = 0;
-					if(lv == null){
-							ActNum = Limit.ActNum;  //如果没有设定限值，用系统默认值。
-						}else {
-							ActNum = (int)lv.up;
-						}
+					//LimitValue lv = Limit.GetActNumLimitEx(val.ELEMENTID);  //2015-1-13 获取该设备或通用动作次数限值
+//					int ActNum = 0;
+//					if(lv == null){
+//							ActNum = Limit.ActNum;  //如果没有设定限值，用系统默认值。
+//						}else {
+//							ActNum = (int)lv.up;
+//						}
+					int ActNum = Limit.ActNum;
 					if(val.LockStartTime != null) {
 						long lockZero = val.LockStartTime.getTime()/(1000*3600*24)*(1000*3600*24)-TimeZone.getDefault().getRawOffset(); //闭锁时间当天零点
 						long curZero = curDate.getTime()/(1000*3600*24)*(1000*3600*24)-TimeZone.getDefault().getRawOffset(); //当前时间当天零点
@@ -219,13 +220,15 @@ public class zjxt_State {
 	public static void SetActNumLock(String elementId) throws Exception {
 		zState val = GetStateItem(elementId);
 		val.ActNumber++;	
-		int ActNum = -1;
-		LimitValue lv = Limit.GetActNumLimitEx(elementId);  //2015-1-13 获取该设备或通用动作次数限值
-		if(lv == null){
-			ActNum = Limit.ActNum;  //如果没有设定限值，用系统默认值。
-		}else {
-			ActNum = (int)lv.up;
-		}
+		PowerSystemResource node = zjxt_CimBuild.GetById(elementId);
+		node.ActNumber = val.ActNumber;
+		int ActNum = Limit.ActNum; ;
+//		LimitValue lv = Limit.GetActNumLimitEx(elementId);  //2015-1-13 获取该设备或通用动作次数限值
+//		if(lv == null){
+//			ActNum = Limit.ActNum;  //如果没有设定限值，用系统默认值。
+//		}else {
+//			ActNum = (int)lv.up;
+//		}
 		
 		int actCount = val.ActNumber; //getActionCount(elementId);
 //		val.ActionOutState = Integer.toString(val.ActNumber);  //2015-1-13 动作状态保存当前设备动作次数
