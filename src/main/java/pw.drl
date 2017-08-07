@@ -239,7 +239,7 @@ function float getPassRate(List equipments,float VolChangeRate, boolean showlog)
 //电压越上限
 function boolean handleLimitUp(Equipment eq) {
 	if(!canOfforDown(eq)) {
-		eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,无调节手段!");
+		eq.prop.SetAlarm(eq.getName()+"当前电压为:"+eq.U+"V,当前无调节手段。");
 		return false;
 	} else { //当前节点可控
 				float Umax = eq.limit.upup-eq.U; 

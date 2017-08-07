@@ -15,6 +15,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.drools.zjxt.kernellib.zjxt_CimBuild.zFeederLine;
 import com.softcore.cim.entity.Equipment;
 import com.softcore.cim.entity.PowerSystemResource;
 
@@ -282,10 +283,17 @@ public class zjxt_Cmd {
 			zjxt_msg.show("库中命令数量:" + size);
 			if(size <= 0) {
 //				zjxt_CimBuild.canControl = true;
-				for(int i=0; i<zjxt_CimBuild.cbList.size(); i++) {
-					if(zjxt_CimBuild.cbList.get(i) instanceof zjxt_CimBuild.zFeederLine) {
-						((zjxt_CimBuild.zFeederLine) zjxt_CimBuild.cbList.get(i)).setCanControl(true);
-//						zjxt_CimBuild.cbList.get(i).line.setCanControl(true);
+//				for(int i=0; i<zjxt_CimBuild.cbList.size(); i++) {
+//					if(zjxt_CimBuild.cbList.get(i) instanceof zjxt_CimBuild.zFeederLine) {
+//						((zjxt_CimBuild.zFeederLine) zjxt_CimBuild.cbList.get(i)).setCanControl(true);
+//					}
+//				}
+				Iterator<PowerSystemResource> it = zjxt_CimBuild.cbList.iterator();
+				while(it.hasNext()){
+					PowerSystemResource psr = it.next();
+					if(psr instanceof zjxt_CimBuild.zFeederLine){
+						zFeederLine f = (zFeederLine)psr;
+						f.setCanControl(true);
 					}
 				}
 			}

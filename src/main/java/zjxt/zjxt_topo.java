@@ -319,7 +319,7 @@ public class zjxt_topo {
 		public List<zNode> ChildNodes = new ArrayList<zNode>();
 		public zTerminal t1, t2, t3;
 		public zjxt_Property prop;
-		
+		//public String ForbidMsg = null;  //不能操作的原因或情况
 		public zFeederLine line;
 		public String UYCID = null;
 		public int ActNumber = 0;
