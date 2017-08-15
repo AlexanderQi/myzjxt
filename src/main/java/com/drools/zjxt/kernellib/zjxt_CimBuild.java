@@ -4,6 +4,7 @@ package com.drools.zjxt.kernellib;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -1640,13 +1641,19 @@ public class zjxt_CimBuild {
 		VoltageLevel voltage = e.voltage;
 		String Name = e.getName();
 //		boolean isVolError = false;
+		int AlarmPeriod = 60*90; //秒数
 		try {
 			if(e instanceof zCapacitor ||
 		    		e instanceof zVoltageRegulator) {
 				if("0.38kv".equals(voltage.getName())) { //低压 线电压转相电压
 					if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 				    		e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {
-				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+				    		if(e.isOnTimeForAlarm(AlarmPeriod)){
+				    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+				    			e.LastAlarmTime = new Date();
+				    		}else{
+				    			zjxt_msg.showwarn("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+				    		}
 				    		e.prop.SetException("电压量测异常");
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
@@ -1658,7 +1665,13 @@ public class zjxt_CimBuild {
 				} else {
 					if(e.U>voltage.getHighVoltageLimit() ||
 				    		e.U<voltage.getLowVoltageLimit()) {
-				    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+				    		
+				    		if(e.isOnTimeForAlarm(AlarmPeriod)){
+				    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+				    			e.LastAlarmTime = new Date();
+				    		}else{
+				    			zjxt_msg.showwarn("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+				    		}
 				    		e.prop.SetException("电压量测异常");
 				    		e.isMeasureError = true;
 				    		e.isVolError = true;
@@ -1702,7 +1715,13 @@ public class zjxt_CimBuild {
 	    	} else if(e instanceof zTransformerFormer) {
 	    		if(e.U>=280 ||
 		    		e.U<=150) {
-		    		e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!",Name, e.U);
+		    		//e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!",Name, e.U);
+		    		if(e.isOnTimeForAlarm(AlarmPeriod)){
+		    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+		    			e.LastAlarmTime = new Date();
+		    		}else{
+		    			zjxt_msg.showwarn("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+		    		}
 		    		e.prop.SetException("电压量测异常");
 		    		e.isMeasureError = true;
 		    		e.isVolError = true;
@@ -1716,7 +1735,13 @@ public class zjxt_CimBuild {
 	    	} else {
 	    		if(e.U*Math.sqrt(3)>voltage.getHighVoltageLimit() ||
 	    			e.U*Math.sqrt(3)<voltage.getLowVoltageLimit()) {  
-	    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+	    			//e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+	    			if(e.isOnTimeForAlarm(AlarmPeriod)){
+		    			e.prop.SetAlarm("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+		    			e.LastAlarmTime = new Date();
+		    		}else{
+		    			zjxt_msg.showwarn("【{}】当前电压:{}V,判断为量测异常,请人工检查!", Name, e.U);
+		    		}
 	    			e.prop.SetException("电压量测异常");
 	    			e.isMeasureError = true;
 		    		return e.isVolError;

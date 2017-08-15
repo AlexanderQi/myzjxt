@@ -115,9 +115,9 @@ rule "feederLine"
         	zjxt_msg.show("本馈线综合电压合格率正常，将逐步调节设备为功率因数优先模式.");
         	return;
         }else{
-        	size = equipments.size();
-        	for(int i=0; i<size; i++) {
-        		Equipment eq = (Equipment)equipments.get(i);
+        	/*Iterator<PowerSystemResource> it = equipments.iterator();
+        	while(it.hasNext()){
+        		Equipment eq = (Equipment)it.next();
         		String Name = eq.getName();
         		if(eq.prop.IsLocked()){
         			zjxt_msg.show("【{}】本次略过,存在闭锁信息:{}",Name,eq.prop.LockedInfo);
@@ -125,7 +125,19 @@ rule "feederLine"
         		 }
         		//String eid = eq.getMrID();			
 				checkU(eq,volRate,overUp,overLo);
+        	}
+        	*/
+        	size = equipments.size();
+        	for(int i=0; i<size; i++) {
+        		Equipment eq = (Equipment)equipments.get(i);
+        		String Name = eq.getName();
+        		if(eq.prop.IsLocked()){
+        			zjxt_msg.show("【{}】本次略过,存在闭锁信息:{}",Name,eq.prop.LockedInfo);
+        		 	continue;
+        		 }		
+				checkU(eq,volRate,overUp,overLo);
 	    	}
+	    	
     	}
     	
     	/*

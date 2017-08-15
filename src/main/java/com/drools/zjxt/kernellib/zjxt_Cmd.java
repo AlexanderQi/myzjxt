@@ -275,7 +275,7 @@ public class zjxt_Cmd {
 			zjxt_msg.showwarn("删除库中超过5分钟的命令记录数量:" + c);
 			c = DelExpireCmdObj();
 			zjxt_msg.showwarn("删除内存中超过5分钟命令对象数量:" + c);
-
+			 
 			sql = "select * from TBLCOMMAND t";
 			ResultSet rs = state.executeQuery(sql);
 			rs.last();
@@ -289,6 +289,7 @@ public class zjxt_Cmd {
 //					}
 //				}
 				Iterator<PowerSystemResource> it = zjxt_CimBuild.cbList.iterator();
+				//Iterator itt =zjxt_CimBuild.cbList.iterator();
 				while(it.hasNext()){
 					PowerSystemResource psr = it.next();
 					if(psr instanceof zjxt_CimBuild.zFeederLine){

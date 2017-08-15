@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -386,6 +387,22 @@ public class zjxt_topo {
 		public String controlState; // 控制状态
 
 		public ControlParam controlParam = new ControlParam(); // 参数值
+		
+		public Date LastAlarmTime = null;
+		
+		public boolean isOnTimeForAlarm(int second){
+			if(LastAlarmTime == null){
+				return true;
+			}else{
+				long bw = (System.currentTimeMillis() - LastAlarmTime.getTime()) / 1000;
+		    	if(bw >= second){
+		    		return true;
+		    	}else{
+		    		return false;
+		    	}
+		    	
+			}
+		}
 
 		// 查询当前节点的父节点
 		public zNode getParentNode() {
